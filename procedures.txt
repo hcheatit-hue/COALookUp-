@@ -1,0 +1,649 @@
+-- =============================================
+-- HC Heat Exchangers - Stored Procedures
+-- =============================================
+-- Generated for SSHCHEAT database
+-- Compatible with SQL Server
+
+-- =============================================
+-- 1. Customer Search Procedure
+-- =============================================
+IF OBJECT_ID('sp_SearchCustomers', 'P') IS NOT NULL
+    DROP PROCEDURE sp_SearchCustomers;
+GO
+
+CREATE PROCEDURE sp_SearchCustomers
+    @SearchTerm NVARCHAR(100)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    SELECT TOP 15
+        ID,
+        NAME,
+        CITY,
+        SALESREP_ID,
+        CURRENCY_ID,
+        ACTIVE_FLAG,
+        LAST_ORDER_DATE
+    FROM CUSTOMER
+    WHERE NAME LIKE '%' + @SearchTerm + '%' 
+       OR ID LIKE '%' + @SearchTerm + '%'
+    ORDER BY NAME;
+END
+GO
+
+-- =============================================
+-- 2. Customer Orders Procedure
+-- =============================================
+IF OBJECT_ID('sp_GetCustomerOrders', 'P') IS NOT NULL
+    DROP PROCEDURE sp_GetCustomerOrders;
+GO
+
+CREATE PROCEDURE sp_GetCustomerOrders
+    @CustomerID NVARCHAR(50),
+    @StatusFilter NVARCHAR(MAX) = NULL,
+    @OrderDateFrom DATE = NULL,
+    @OrderDateTo DATE = NULL,
+    @DesiredShipDateFrom DATE = NULL,
+    @DesiredShipDateTo DATE = NULL,
+    @Salesrep NVARCHAR(50) = NULL,
+    @Territory NVARCHAR(100) = NULL,
+    @Currency NVARCHAR(10) = NULL,
+    @TotalOrderedMin DECIMAL(18,2) = NULL,
+    @TotalOrderedMax DECIMAL(18,2) = NULL,
+    @OrderType NVARCHAR(20) = NULL,
+    @Backorder NVARCHAR(1) = NULL,
+    @Offset INT = 0,
+    @Limit INT = 50
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    DECLARE @SQL NVARCHAR(MAX) = '
+    SELECT
+        co.ID,
+        co.CUSTOMER_PO_REF,
+        co.ORDER_DATE,
+        co.DESIRED_SHIP_DATE,
+        co.PROMISE_DATE,
+        co.LAST_SHIPPED_DATE,
+        co.STATUS,
+        co.TOTAL_AMT_ORDERED,
+        co.TOTAL_AMT_SHIPPED,
+        co.CURRENCY_ID,
+        co.SALESREP_ID,
+        co.TERRITORY,
+        co.USER_1,
+        CASE WHEN EXISTS (
+            SELECT 1 FROM CUST_ORDER_LINE col 
+            WHERE (col.CUST_ORDER_ID = co.ID OR col.CUST_ORDER_ID = ''`'' + co.ID)
+            AND col.ORDER_QTY > ISNULL(col.TOTAL_SHIPPED_QTY, 0)
+        ) THEN 0 ELSE 1 END AS IS_COMPLETE
+    FROM CUSTOMER_ORDER co
+    WHERE co.CUSTOMER_ID = @CustomerIDParam';
+    
+    DECLARE @Params NVARCHAR(MAX) = '@CustomerIDParam NVARCHAR(50)';
+    
+    -- Add optional filters
+    IF @StatusFilter IS NOT NULL AND @StatusFilter != ''
+    BEGIN
+        SET @SQL = @SQL + ' AND co.STATUS IN (' + @StatusFilter + ')';
+    END
+    
+    IF @OrderDateFrom IS NOT NULL AND @OrderDateTo IS NOT NULL
+    BEGIN
+        SET @SQL = @SQL + ' AND co.ORDER_DATE BETWEEN @OrderDateFromParam AND @OrderDateToParam';
+        SET @Params = @Params + ', @OrderDateFromParam DATE, @OrderDateToParam DATE';
+    END
+    ELSE IF @OrderDateFrom IS NOT NULL
+    BEGIN
+        SET @SQL = @SQL + ' AND co.ORDER_DATE >= @OrderDateFromParam';
+        SET @Params = @Params + ', @OrderDateFromParam DATE';
+    END
+    ELSE IF @OrderDateTo IS NOT NULL
+    BEGIN
+        SET @SQL = @SQL + ' AND co.ORDER_DATE <= @OrderDateToParam';
+        SET @Params = @Params + ', @OrderDateToParam DATE';
+    END
+    
+    IF @DesiredShipDateFrom IS NOT NULL AND @DesiredShipDateTo IS NOT NULL
+    BEGIN
+        SET @SQL = @SQL + ' AND co.DESIRED_SHIP_DATE BETWEEN @DesiredShipDateFromParam AND @DesiredShipDateToParam';
+        SET @Params = @Params + ', @DesiredShipDateFromParam DATE, @DesiredShipDateToParam DATE';
+    END
+    ELSE IF @DesiredShipDateFrom IS NOT NULL
+    BEGIN
+        SET @SQL = @SQL + ' AND co.DESIRED_SHIP_DATE >= @DesiredShipDateFromParam';
+        SET @Params = @Params + ', @DesiredShipDateFromParam DATE';
+    END
+    ELSE IF @DesiredShipDateTo IS NOT NULL
+    BEGIN
+        SET @SQL = @SQL + ' AND co.DESIRED_SHIP_DATE <= @DesiredShipDateToParam';
+        SET @Params = @Params + ', @DesiredShipDateToParam DATE';
+    END
+    
+    IF @Salesrep IS NOT NULL
+    BEGIN
+        SET @SQL = @SQL + ' AND co.SALESREP_ID = @SalesrepParam';
+        SET @Params = @Params + ', @SalesrepParam NVARCHAR(50)';
+    END
+    
+    IF @Territory IS NOT NULL
+    BEGIN
+        SET @SQL = @SQL + ' AND co.TERRITORY LIKE @TerritoryParam';
+        SET @Params = @Params + ', @TerritoryParam NVARCHAR(100)';
+    END
+    
+    IF @Currency IS NOT NULL
+    BEGIN
+        SET @SQL = @SQL + ' AND co.CURRENCY_ID = @CurrencyParam';
+        SET @Params = @Params + ', @CurrencyParam NVARCHAR(10)';
+    END
+    
+    IF @TotalOrderedMin IS NOT NULL AND @TotalOrderedMax IS NOT NULL
+    BEGIN
+        SET @SQL = @SQL + ' AND co.TOTAL_AMT_ORDERED BETWEEN @TotalOrderedMinParam AND @TotalOrderedMaxParam';
+        SET @Params = @Params + ', @TotalOrderedMinParam DECIMAL(18,2), @TotalOrderedMaxParam DECIMAL(18,2)';
+    END
+    ELSE IF @TotalOrderedMin IS NOT NULL
+    BEGIN
+        SET @SQL = @SQL + ' AND co.TOTAL_AMT_ORDERED >= @TotalOrderedMinParam';
+        SET @Params = @Params + ', @TotalOrderedMinParam DECIMAL(18,2)';
+    END
+    ELSE IF @TotalOrderedMax IS NOT NULL
+    BEGIN
+        SET @SQL = @SQL + ' AND co.TOTAL_AMT_ORDERED <= @TotalOrderedMaxParam';
+        SET @Params = @Params + ', @TotalOrderedMaxParam DECIMAL(18,2)';
+    END
+    
+    IF @OrderType IS NOT NULL
+    BEGIN
+        SET @SQL = @SQL + ' AND co.ORDER_TYPE = @OrderTypeParam';
+        SET @Params = @Params + ', @OrderTypeParam NVARCHAR(20)';
+    END
+    
+    IF @Backorder IS NOT NULL
+    BEGIN
+        SET @SQL = @SQL + ' AND co.BACKORDER_FLAG = @BackorderParam';
+        SET @Params = @Params + ', @BackorderParam NVARCHAR(1)';
+    END
+    
+    SET @SQL = @SQL + ' ORDER BY co.ORDER_DATE DESC OFFSET @OffsetParam ROWS FETCH NEXT @LimitParam ROWS ONLY';
+    SET @Params = @Params + ', @OffsetParam INT, @LimitParam INT';
+    
+    -- Execute dynamic SQL
+    EXEC sp_executesql 
+        @SQL, 
+        @Params,
+        @CustomerIDParam = @CustomerID,
+        @OrderDateFromParam = @OrderDateFrom,
+        @OrderDateToParam = @OrderDateTo,
+        @DesiredShipDateFromParam = @DesiredShipDateFrom,
+        @DesiredShipDateToParam = @DesiredShipDateTo,
+        @SalesrepParam = @Salesrep,
+        @TerritoryParam = '%' + @Territory + '%',
+        @CurrencyParam = @Currency,
+        @TotalOrderedMinParam = @TotalOrderedMin,
+        @TotalOrderedMaxParam = @TotalOrderedMax,
+        @OrderTypeParam = @OrderType,
+        @BackorderParam = @Backorder,
+        @OffsetParam = @Offset,
+        @LimitParam = @Limit;
+END
+GO
+
+-- =============================================
+-- 3. Order Detail Header Procedure
+-- =============================================
+IF OBJECT_ID('sp_GetOrderDetailHeader', 'P') IS NOT NULL
+    DROP PROCEDURE sp_GetOrderDetailHeader;
+GO
+
+CREATE PROCEDURE sp_GetOrderDetailHeader
+    @OrderID NVARCHAR(50)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    SELECT
+        co.ID, co.CUSTOMER_ID, co.CUSTOMER_PO_REF,
+        co.CONTACT_FIRST_NAME, co.CONTACT_LAST_NAME,
+        co.CONTACT_PHONE, co.CONTACT_MOBILE, co.CONTACT_EMAIL,
+        co.CONTACT_POSITION,
+        co.ORDER_DATE, co.DESIRED_SHIP_DATE, co.PROMISE_DATE,
+        co.LAST_SHIPPED_DATE, co.CREATE_DATE, co.STATUS_EFF_DATE,
+        co.STATUS,
+        co.TOTAL_AMT_ORDERED, co.TOTAL_AMT_SHIPPED,
+        co.CURRENCY_ID, co.SELL_RATE, co.BUY_RATE,
+        co.TERMS_DESCRIPTION, co.TERMS_NET_DAYS, co.TERMS_DISC_PERCENT,
+        co.SALESREP_ID, co.TERRITORY,
+        co.SHIP_VIA, co.FREE_ON_BOARD, co.FREIGHT_TERMS,
+        co.BACK_ORDER, co.BACKORDER_FLAG,
+        co.WAREHOUSE_ID, co.SITE_ID,
+        co.USER_1, co.USER_2, co.USER_3,
+        co.ENTERED_BY,
+        c.NAME AS CUSTOMER_NAME,
+        c.ADDR_1, c.ADDR_2, c.CITY, c.COUNTRY,
+        co.TYPE, co.ORDER_TYPE
+    FROM CUSTOMER_ORDER co
+    LEFT JOIN CUSTOMER c ON co.CUSTOMER_ID = c.ID
+    WHERE co.ID = @OrderID OR co.ID = '`' + @OrderID;
+END
+GO
+
+-- =============================================
+-- 4. Order Detail Lines Procedure
+-- =============================================
+IF OBJECT_ID('sp_GetOrderDetailLines', 'P') IS NOT NULL
+    DROP PROCEDURE sp_GetOrderDetailLines;
+GO
+
+CREATE PROCEDURE sp_GetOrderDetailLines
+    @OrderID NVARCHAR(50),
+    @Offset INT = 0,
+    @Limit INT = 100
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    SELECT
+        LINE_NO, PART_ID, CUSTOMER_PART_ID,
+        LINE_STATUS, ORDER_QTY, TOTAL_SHIPPED_QTY,
+        UNIT_PRICE, TOTAL_AMT_ORDERED, TOTAL_AMT_SHIPPED,
+        DESIRED_SHIP_DATE, LAST_SHIPPED_DATE, PROMISE_DATE,
+        PRODUCT_CODE, MISC_REFERENCE,
+        TRADE_DISC_PERCENT, COMMISSION_PCT,
+        WAREHOUSE_ID, TYPE
+    FROM CUST_ORDER_LINE
+    WHERE CUST_ORDER_ID = @OrderID OR CUST_ORDER_ID = '`' + @OrderID
+    ORDER BY LINE_NO
+    OFFSET @Offset ROWS FETCH NEXT @Limit ROWS ONLY;
+END
+GO
+
+-- =============================================
+-- 5. Orders Search Procedure
+-- =============================================
+IF OBJECT_ID('sp_SearchOrders', 'P') IS NOT NULL
+    DROP PROCEDURE sp_SearchOrders;
+GO
+
+CREATE PROCEDURE sp_SearchOrders
+    @SearchTerm NVARCHAR(100),
+    @StatusFilter NVARCHAR(MAX) = NULL,
+    @OrderDateFrom DATE = NULL,
+    @OrderDateTo DATE = NULL,
+    @DesiredShipDateFrom DATE = NULL,
+    @DesiredShipDateTo DATE = NULL,
+    @Salesrep NVARCHAR(50) = NULL,
+    @Territory NVARCHAR(100) = NULL,
+    @Currency NVARCHAR(10) = NULL,
+    @TotalOrderedMin DECIMAL(18,2) = NULL,
+    @TotalOrderedMax DECIMAL(18,2) = NULL,
+    @OrderType NVARCHAR(20) = NULL,
+    @Backorder NVARCHAR(1) = NULL,
+    @Offset INT = 0,
+    @Limit INT = 50
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    DECLARE @SQL NVARCHAR(MAX) = '
+    SELECT TOP 100
+        co.ID,
+        co.CUSTOMER_ID,
+        co.CUSTOMER_PO_REF,
+        co.ORDER_DATE,
+        co.DESIRED_SHIP_DATE,
+        co.PROMISE_DATE,
+        co.LAST_SHIPPED_DATE,
+        co.STATUS,
+        co.TOTAL_AMT_ORDERED,
+        co.TOTAL_AMT_SHIPPED,
+        co.CURRENCY_ID,
+        co.SALESREP_ID,
+        co.TERRITORY,
+        co.USER_1,
+        c.NAME AS CUSTOMER_NAME
+    FROM CUSTOMER_ORDER co
+    LEFT JOIN CUSTOMER c ON co.CUSTOMER_ID = c.ID
+    WHERE (co.CUSTOMER_PO_REF LIKE @SearchTermParam OR c.NAME LIKE @SearchTermParam)';
+    
+    DECLARE @Params NVARCHAR(MAX) = '@SearchTermParam NVARCHAR(100)';
+    
+    -- Add optional filters (same logic as sp_GetCustomerOrders)
+    IF @StatusFilter IS NOT NULL AND @StatusFilter != ''
+    BEGIN
+        SET @SQL = @SQL + ' AND co.STATUS IN (' + @StatusFilter + ')';
+    END
+    
+    IF @OrderDateFrom IS NOT NULL AND @OrderDateTo IS NOT NULL
+    BEGIN
+        SET @SQL = @SQL + ' AND co.ORDER_DATE BETWEEN @OrderDateFromParam AND @OrderDateToParam';
+        SET @Params = @Params + ', @OrderDateFromParam DATE, @OrderDateToParam DATE';
+    END
+    ELSE IF @OrderDateFrom IS NOT NULL
+    BEGIN
+        SET @SQL = @SQL + ' AND co.ORDER_DATE >= @OrderDateFromParam';
+        SET @Params = @Params + ', @OrderDateFromParam DATE';
+    END
+    ELSE IF @OrderDateTo IS NOT NULL
+    BEGIN
+        SET @SQL = @SQL + ' AND co.ORDER_DATE <= @OrderDateToParam';
+        SET @Params = @Params + ', @OrderDateToParam DATE';
+    END
+    
+    -- Add other filters (same pattern as customer orders)
+    IF @Salesrep IS NOT NULL
+    BEGIN
+        SET @SQL = @SQL + ' AND co.SALESREP_ID = @SalesrepParam';
+        SET @Params = @Params + ', @SalesrepParam NVARCHAR(50)';
+    END
+    
+    IF @Territory IS NOT NULL
+    BEGIN
+        SET @SQL = @SQL + ' AND co.TERRITORY LIKE @TerritoryParam';
+        SET @Params = @Params + ', @TerritoryParam NVARCHAR(100)';
+    END
+    
+    IF @Currency IS NOT NULL
+    BEGIN
+        SET @SQL = @SQL + ' AND co.CURRENCY_ID = @CurrencyParam';
+        SET @Params = @Params + ', @CurrencyParam NVARCHAR(10)';
+    END
+    
+    SET @SQL = @SQL + ' ORDER BY co.ORDER_DATE DESC OFFSET @OffsetParam ROWS FETCH NEXT @LimitParam ROWS ONLY';
+    SET @Params = @Params + ', @OffsetParam INT, @LimitParam INT';
+    
+    EXEC sp_executesql 
+        @SQL, 
+        @Params,
+        @SearchTermParam = '%' + @SearchTerm + '%',
+        @OrderDateFromParam = @OrderDateFrom,
+        @OrderDateToParam = @OrderDateTo,
+        @SalesrepParam = @Salesrep,
+        @TerritoryParam = '%' + @Territory + '%',
+        @CurrencyParam = @Currency,
+        @OffsetParam = @Offset,
+        @LimitParam = @Limit;
+END
+GO
+
+-- =============================================
+-- 6. Sales Representatives Procedure
+-- =============================================
+IF OBJECT_ID('sp_GetSalesReps', 'P') IS NOT NULL
+    DROP PROCEDURE sp_GetSalesReps;
+GO
+
+CREATE PROCEDURE sp_GetSalesReps
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    SELECT DISTINCT 
+        SALESREP_ID, 
+        TERRITORY
+    FROM CUSTOMER_ORDER
+    WHERE SALESREP_ID IS NOT NULL OR TERRITORY IS NOT NULL
+    ORDER BY SALESREP_ID, TERRITORY;
+END
+GO
+
+-- =============================================
+-- 7. Outstanding Payments Procedure
+-- =============================================
+IF OBJECT_ID('sp_GetOutstandingPayments', 'P') IS NOT NULL
+    DROP PROCEDURE sp_GetOutstandingPayments;
+GO
+
+CREATE PROCEDURE sp_GetOutstandingPayments
+    @DateFrom DATE = NULL,
+    @DateTo DATE = NULL,
+    @Offset INT = 0,
+    @Limit INT = 50
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    DECLARE @SQL NVARCHAR(MAX) = '
+    SELECT
+        t.ID,
+        t.CUSTOMER_PO_REF,
+        t.CONTACT_FIRST_NAME,
+        t.SHIP_VIA,
+        t.SALESREP_ID,
+        t.FREIGHT_TERMS,
+        t.TERMS_DESCRIPTION,
+        t.STATUS,
+        t.TOTAL_AMT_ORDERED,
+        t.TOTAL_AMT_SHIPPED,
+        t.AMT_OUTSTANDING,
+        co.ORDER_DATE,
+        co.CURRENCY_ID,
+        c.NAME AS CUSTOMER_NAME
+    FROM (
+        SELECT 
+            ID,
+            CUSTOMER_PO_REF,
+            CONTACT_FIRST_NAME,
+            SHIP_VIA,
+            SALESREP_ID,
+            FREIGHT_TERMS,
+            TERMS_DESCRIPTION,
+            STATUS,
+            TOTAL_AMT_ORDERED,
+            TOTAL_AMT_SHIPPED,
+            (ISNULL(TOTAL_AMT_ORDERED, 0) - ISNULL(TOTAL_AMT_SHIPPED, 0)) AS AMT_OUTSTANDING
+        FROM CUSTOMER_ORDER
+    ) t
+    LEFT JOIN CUSTOMER_ORDER co ON t.ID = co.ID
+    LEFT JOIN CUSTOMER c ON co.CUSTOMER_ID = c.ID
+    WHERE t.AMT_OUTSTANDING > 0';
+    
+    DECLARE @Params NVARCHAR(MAX) = '';
+    
+    IF @DateFrom IS NOT NULL AND @DateTo IS NOT NULL
+    BEGIN
+        SET @SQL = @SQL + ' AND co.ORDER_DATE BETWEEN @DateFromParam AND @DateToParam';
+        SET @Params = '@DateFromParam DATE, @DateToParam DATE';
+    END
+    ELSE IF @DateFrom IS NOT NULL
+    BEGIN
+        SET @SQL = @SQL + ' AND co.ORDER_DATE >= @DateFromParam';
+        SET @Params = '@DateFromParam DATE';
+    END
+    ELSE IF @DateTo IS NOT NULL
+    BEGIN
+        SET @SQL = @SQL + ' AND co.ORDER_DATE <= @DateToParam';
+        SET @Params = '@DateToParam DATE';
+    END
+    
+    SET @SQL = @SQL + ' ORDER BY co.ORDER_DATE DESC OFFSET @OffsetParam ROWS FETCH NEXT @LimitParam ROWS ONLY';
+    
+    IF @Params = ''
+        SET @Params = '@OffsetParam INT, @LimitParam INT';
+    ELSE
+        SET @Params = @Params + ', @OffsetParam INT, @LimitParam INT';
+    
+    EXEC sp_executesql 
+        @SQL, 
+        @Params,
+        @DateFromParam = @DateFrom,
+        @DateToParam = @DateTo,
+        @OffsetParam = @Offset,
+        @LimitParam = @Limit;
+END
+GO
+
+-- =============================================
+-- 8. GL Account Search Procedure
+-- =============================================
+IF OBJECT_ID('sp_SearchGLAccounts', 'P') IS NOT NULL
+    DROP PROCEDURE sp_SearchGLAccounts;
+GO
+
+CREATE PROCEDURE sp_SearchGLAccounts
+    @SearchTerm NVARCHAR(100),
+    @StartYear INT,
+    @StartPeriod INT,
+    @EndYear INT,
+    @EndPeriod INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    SELECT
+        a.ID                        AS Account_ID,
+        a.DESCRIPTION               AS Description,
+        ab.ACCT_YEAR                AS Fiscal_Year,
+        ab.ACCT_PERIOD              AS Fiscal_Period,
+        FORMAT(DATEFROMPARTS(
+            CASE WHEN ab.ACCT_PERIOD >= 11 THEN ab.ACCT_YEAR ELSE ab.ACCT_YEAR - 1 END,
+            CASE ab.ACCT_PERIOD
+                WHEN 1 THEN 3 WHEN 2 THEN 4 WHEN 3 THEN 5 WHEN 4 THEN 6
+                WHEN 5 THEN 7 WHEN 6 THEN 8 WHEN 7 THEN 9 WHEN 8 THEN 10
+                WHEN 9 THEN 11 WHEN 10 THEN 12 WHEN 11 THEN 1 WHEN 12 THEN 2
+            END, 1), 'MMM/yyyy')    AS Period,
+        ab.CURR_BALANCE             AS Balance,
+        (ab.DEBIT_BUDGET - ab.CREDIT_BUDGET) AS Budget,
+        SUM(ab.DEBIT_BUDGET - ab.CREDIT_BUDGET)
+            OVER (PARTITION BY ab.ACCOUNT_ID, ab.ACCT_YEAR ORDER BY ab.ACCT_PERIOD)
+                                    AS Cumulative_Budget,
+        ab.CURR_BALANCE - (ab.DEBIT_BUDGET - ab.CREDIT_BUDGET) AS Variance
+    FROM ACCOUNT a
+    INNER JOIN ACCOUNT_BALANCE ab ON a.ID = ab.ACCOUNT_ID
+    WHERE (a.ID LIKE '%' + @SearchTerm + '%' OR a.DESCRIPTION LIKE '%' + @SearchTerm + '%')
+      AND (
+            (ab.ACCT_YEAR > @StartYearParam OR (ab.ACCT_YEAR = @StartYearParam AND ab.ACCT_PERIOD >= @StartPeriodParam))
+        AND (ab.ACCT_YEAR < @EndYearParam OR (ab.ACCT_YEAR = @EndYearParam AND ab.ACCT_PERIOD <= @EndPeriodParam))
+      )
+    ORDER BY a.ID, ab.ACCT_YEAR, ab.ACCT_PERIOD;
+END
+GO
+
+-- =============================================
+-- 9. Order Completion Check Procedure
+-- =============================================
+IF OBJECT_ID('sp_CheckOrderCompletion', 'P') IS NOT NULL
+    DROP PROCEDURE sp_CheckOrderCompletion;
+GO
+
+CREATE PROCEDURE sp_CheckOrderCompletion
+    @OrderID NVARCHAR(50)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    SELECT 
+        @OrderID AS OrderID,
+        CASE WHEN EXISTS (
+            SELECT 1 FROM CUST_ORDER_LINE col 
+            WHERE (col.CUST_ORDER_ID = @OrderID OR col.CUST_ORDER_ID = '`' + @OrderID)
+            AND col.ORDER_QTY > ISNULL(col.TOTAL_SHIPPED_QTY, 0)
+        ) THEN 0 ELSE 1 END AS IsComplete,
+        (SELECT COUNT(*) FROM CUST_ORDER_LINE 
+         WHERE (CUST_ORDER_ID = @OrderID OR CUST_ORDER_ID = '`' + @OrderID)) AS TotalLines,
+        (SELECT COUNT(*) FROM CUST_ORDER_LINE 
+         WHERE (CUST_ORDER_ID = @OrderID OR CUST_ORDER_ID = '`' + @OrderID)
+         AND ORDER_QTY <= ISNULL(TOTAL_SHIPPED_QTY, 0)) AS CompletedLines;
+END
+GO
+
+-- =============================================
+-- 10. Customer Order Summary Procedure
+-- =============================================
+IF OBJECT_ID('sp_GetCustomerOrderSummary', 'P') IS NOT NULL
+    DROP PROCEDURE sp_GetCustomerOrderSummary;
+GO
+
+CREATE PROCEDURE sp_GetCustomerOrderSummary
+    @CustomerID NVARCHAR(50)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    SELECT 
+        COUNT(*) AS TotalOrders,
+        SUM(TOTAL_AMT_ORDERED) AS TotalOrderedAmount,
+        SUM(TOTAL_AMT_SHIPPED) AS TotalShippedAmount,
+        SUM(ISNULL(TOTAL_AMT_ORDERED, 0) - ISNULL(TOTAL_AMT_SHIPPED, 0)) AS OutstandingAmount,
+        AVG(TOTAL_AMT_ORDERED) AS AverageOrderValue,
+        MAX(ORDER_DATE) AS LastOrderDate,
+        MIN(ORDER_DATE) AS FirstOrderDate
+    FROM CUSTOMER_ORDER
+    WHERE CUSTOMER_ID = @CustomerID;
+END
+GO
+
+-- =============================================
+-- USAGE EXAMPLES
+-- =============================================
+
+/*
+-- Example 1: Search Customers
+EXEC sp_SearchCustomers 'JOHN';
+
+-- Example 2: Get Customer Orders with filters
+EXEC sp_GetCustomerOrders 
+    @CustomerID = 'CUST001',
+    @StatusFilter = '''O'',''S''',
+    @OrderDateFrom = '2024-01-01',
+    @OrderDateTo = '2024-12-31',
+    @Offset = 0,
+    @Limit = 50;
+
+-- Example 3: Get Order Details
+EXEC sp_GetOrderDetailHeader '12345';
+EXEC sp_GetOrderDetailLines '12345';
+
+-- Example 4: Search Orders
+EXEC sp_SearchOrders 
+    @SearchTerm = 'PO123',
+    @Offset = 0,
+    @Limit = 50;
+
+-- Example 5: Get Outstanding Payments
+EXEC sp_GetOutstandingPayments 
+    @DateFrom = '2024-01-01',
+    @DateTo = '2024-12-31',
+    @Offset = 0,
+    @Limit = 50;
+
+-- Example 6: Search GL Accounts
+EXEC sp_SearchGLAccounts 
+    @SearchTerm = '4254',
+    @StartYear = 2024,
+    @StartPeriod = 1,
+    @EndYear = 2025,
+    @EndPeriod = 12;
+
+-- Example 7: Check Order Completion
+EXEC sp_CheckOrderCompletion '12345';
+
+-- Example 8: Get Customer Summary
+EXEC sp_GetCustomerOrderSummary 'CUST001';
+*/
+
+-- =============================================
+-- PERFORMANCE RECOMMENDATIONS
+-- =============================================
+/*
+1. Create indexes on frequently queried columns:
+   - CUSTOMER(ID, NAME)
+   - CUSTOMER_ORDER(CUSTOMER_ID, ORDER_DATE, STATUS)
+   - CUST_ORDER_LINE(CUST_ORDER_ID, LINE_NO)
+   - ACCOUNT(ID, DESCRIPTION)
+   - ACCOUNT_BALANCE(ACCOUNT_ID, ACCT_YEAR, ACCT_PERIOD)
+
+2. Consider adding filtered indexes for common queries:
+   - CREATE INDEX IX_CUSTOMER_ORDER_ACTIVE ON CUSTOMER_ORDER(CUSTOMER_ID, ORDER_DATE) WHERE STATUS IN ('O','S');
+   - CREATE INDEX IX_ACCOUNT_BALANCE_PERIOD ON ACCOUNT_BALANCE(ACCOUNT_ID, ACCT_YEAR, ACCT_PERIOD);
+
+3. Update statistics regularly:
+   - EXEC sp_updatestats;
+
+4. Monitor query performance with:
+   - SET STATISTICS IO ON;
+   - SET STATISTICS TIME ON;
+*/

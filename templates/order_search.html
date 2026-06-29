@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Order Search</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --base:      #0C0C0F;
+    --surface:   #1C1917;
+    --surface2:  #252320;
+    --border:    #2E2B27;
+    --accent:    #BA7517;
+    --highlight: #FAC775;
+    --light:     #FAEEDA;
+    --muted:     #7A6F62;
+    --text:      #E8E0D4;
+    --danger:    #C0392B;
+    --success:   #2E7D52;
+    --radius:    16px;
+    --radius-sm: 10px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--base);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    padding: 2rem;
+  }
+
+  /* ── HEADER ── */
+  .page-header {
+    margin-bottom: 2rem;
+  }
+  .page-header h1 {
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--highlight);
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+  }
+  .page-header p {
+    color: var(--muted);
+    font-size: 0.85rem;
+    margin-top: 0.35rem;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* ── SEARCH CARD ── */
+  .search-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+    gap: 1rem;
+    align-items: end;
+  }
+
+  .field label {
+    display: block;
+    font-size: 0.72rem;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 0.5rem;
+  }
+
+  .field input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.9rem;
+    padding: 0.7rem 1rem;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .field input:focus {
+    border-color: var(--accent);
+  }
+  .field input::placeholder {
+    color: var(--muted);
+    opacity: 0.6;
+  }
+
+  .btn-search {
+    background: var(--accent);
+    color: var(--base);
+    border: none;
+    border-radius: var(--radius-sm);
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 0.9rem;
+    padding: 0.7rem 1.8rem;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+    white-space: nowrap;
+    height: 42px;
+  }
+  .btn-search:hover  { background: var(--highlight); }
+  .btn-search:active { transform: scale(0.97); }
+  .btn-search:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* ── STATUS BAR ── */
+  .status-bar {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-bottom: 1rem;
+    min-height: 1.2rem;
+  }
+  .status-bar .count  { color: var(--highlight); font-weight: 500; }
+  .status-bar .err    { color: var(--danger); }
+
+  /* ── RESULTS ── */
+  .results-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  /* Order group block */
+  .order-block {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    animation: fadeUp 0.3s ease both;
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Order header row */
+  .order-header {
+    display: grid;
+    grid-template-columns: auto 1fr auto auto auto;
+    gap: 1rem;
+    align-items: center;
+    padding: 1rem 1.25rem;
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    user-select: none;
+  }
+  .order-id {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--highlight);
+  }
+  .order-customer {
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--text);
+  }
+  .order-coa {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    color: var(--muted);
+  }
+  .order-date {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    color: var(--muted);
+  }
+  .order-status {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 0.25rem 0.6rem;
+    border-radius: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .status-O { background: rgba(186,117,23,0.2); color: var(--highlight); border: 1px solid var(--accent); }
+  .status-C { background: rgba(46,125,82,0.2);  color: #4CAF82;          border: 1px solid #2E7D52; }
+  .status-X { background: rgba(192,57,43,0.2);  color: #E57373;          border: 1px solid var(--danger); }
+  .status-  { background: rgba(255,255,255,0.05); color: var(--muted);   border: 1px solid var(--border); }
+
+  .chevron {
+    color: var(--muted);
+    font-size: 0.8rem;
+    transition: transform 0.2s;
+    margin-left: 0.5rem;
+  }
+  .order-block.collapsed .chevron { transform: rotate(-90deg); }
+
+  /* Lines table */
+  .lines-table-wrap {
+    overflow-x: auto;
+  }
+  .order-block.collapsed .lines-table-wrap { display: none; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+  }
+  thead tr {
+    background: rgba(186,117,23,0.08);
+    border-bottom: 1px solid var(--border);
+  }
+  thead th {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    padding: 0.6rem 1rem;
+    text-align: left;
+    white-space: nowrap;
+  }
+  thead th.num { text-align: right; }
+
+  tbody tr { border-bottom: 1px solid var(--border); transition: background 0.15s; }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: rgba(186,117,23,0.05); }
+
+  td {
+    padding: 0.6rem 1rem;
+    color: var(--text);
+    white-space: nowrap;
+  }
+  td.num  { text-align: right; font-family: 'JetBrains Mono', monospace; }
+  td.mono { font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; }
+  td.muted { color: var(--muted); }
+
+  .line-status-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    padding: 0.15rem 0.45rem;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .ls-O { background: rgba(186,117,23,0.15); color: var(--highlight); }
+  .ls-C { background: rgba(46,125,82,0.15);  color: #4CAF82; }
+  .ls-X { background: rgba(192,57,43,0.15);  color: #E57373; }
+
+  /* Footer totals row */
+  .totals-row td {
+    background: var(--surface2);
+    border-top: 2px solid var(--border);
+    font-weight: 700;
+    color: var(--highlight);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* ── EMPTY / LOADING ── */
+  .empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: var(--muted);
+  }
+  .empty-state .icon { font-size: 2.5rem; margin-bottom: 0.75rem; opacity: 0.4; }
+  .empty-state p { font-size: 0.85rem; }
+
+  .spinner {
+    display: inline-block;
+    width: 16px; height: 16px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    vertical-align: middle;
+    margin-right: 0.5rem;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 700px) {
+    .search-card { grid-template-columns: 1fr; }
+    .order-header { grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>Order Search</h1>
+  <p>Search by customer name or order ID &mdash; wildcards applied automatically</p>
+</div>
+
+<div class="search-card">
+  <div class="field">
+    <label>Customer Name</label>
+    <input id="inp-customer" type="text" placeholder="e.g. Acme or AC" autocomplete="off"/>
+  </div>
+  <div class="field">
+    <label>Order ID (COA)</label>
+    <input id="inp-order" type="text" placeholder="e.g. 183000" autocomplete="off"/>
+  </div>
+  <button class="btn-search" id="btn-search" onclick="runSearch()">Search</button>
+</div>
+
+<div class="status-bar" id="status"></div>
+<div class="results-wrapper" id="results">
+  <div class="empty-state">
+    <div class="icon">&#9744;</div>
+    <p>Enter a customer name or order ID to begin</p>
+  </div>
+</div>
+
+<script>
+  // Allow Enter key to trigger search
+  document.getElementById('inp-customer').addEventListener('keydown', e => { if (e.key === 'Enter') runSearch(); });
+  document.getElementById('inp-order').addEventListener('keydown',   e => { if (e.key === 'Enter') runSearch(); });
+
+  function fmt(val) {
+    if (val === null || val === undefined) return '<span class="muted">—</span>';
+    return val;
+  }
+  function fmtNum(val, decimals = 2) {
+    if (val === null || val === undefined) return '<span class="muted">—</span>';
+    return parseFloat(val).toLocaleString('en-ZA', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+  }
+  function statusBadge(s) {
+    const map = { O: 'Open', C: 'Closed', X: 'Cancelled' };
+    const cls = ['O','C','X'].includes(s) ? s : ' ';
+    return `<span class="order-status status-${cls.trim() || 'def'}">${map[s] || s || 'Unknown'}</span>`;
+  }
+  function lineBadge(s) {
+    const map = { O: 'Open', C: 'Closed', X: 'Cancelled' };
+    const cls = ['O','C','X'].includes(s) ? s : 'O';
+    return `<span class="line-status-badge ls-${cls}">${map[s] || s || '?'}</span>`;
+  }
+
+  function groupByOrder(rows) {
+    const map = {};
+    rows.forEach(r => {
+      if (!map[r.Order_ID]) map[r.Order_ID] = [];
+      map[r.Order_ID].push(r);
+    });
+    return map;
+  }
+
+  function toggleOrder(id) {
+  const block = document.getElementById('ob-' + id);
+  if (block) block.classList.toggle('collapsed');
+}
+
+  function renderResults(rows) {
+    const container = document.getElementById('results');
+    if (!rows.length) {
+      container.innerHTML = '<div class="empty-state"><div class="icon">&#9744;</div><p>No orders found matching your search.</p></div>';
+      return;
+    }
+
+    const grouped = groupByOrder(rows);
+    let html = '';
+
+    Object.entries(grouped).forEach(([orderId, lines], idx) => {
+      const first = lines[0];
+      const grandTotal   = parseFloat(first.Order_Grand_Total  || 0);
+      const totalShipped = parseFloat(first.Order_Total_Shipped || 0);
+
+      html += `
+        <div class="order-block" id="ob-${CSS.escape(orderId)}">
+         <div class="order-header" onclick="toggleOrder('${CSS.escape(orderId)}')">
+            <span class="order-id">#${fmt(first.Order_ID)}</span>
+            <span class="order-customer">${fmt(first.Customer_Name)}</span>
+            <span class="order-coa">COA: ${fmt(first.COA_Number)}</span>
+            <span class="order-date">${fmt(first.ORDER_DATE)}</span>
+            ${statusBadge(first.STATUS)}
+            <span class="chevron">&#9660;</span>
+          </div>
+          <div class="lines-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Line</th>
+                  <th>Part ID</th>
+                  <th>Description</th>
+                  <th class="num">Ord Qty</th>
+                  <th class="num">Ship Qty</th>
+                  <th class="num">Outstanding</th>
+                  <th class="num">Unit Price</th>
+                  <th class="num">Disc %</th>
+                  <th class="num">Net Price</th>
+                  <th class="num">Line Total</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${lines.map(l => `
+                  <tr>
+                    <td class="mono">${fmt(l.LINE_NO)}</td>
+                    <td class="mono">${fmt(l.PART_ID)}</td>
+                    <td>${fmt(l.Part_Description)}</td>
+                    <td class="num">${fmtNum(l.ORDER_QTY, 0)}</td>
+                    <td class="num">${fmtNum(l.TOTAL_SHIPPED_QTY, 0)}</td>
+                    <td class="num">${fmtNum(l.Outstanding_QTY, 0)}</td>
+                    <td class="num">${fmtNum(l.UNIT_PRICE)}</td>
+                    <td class="num">${l.TRADE_DISC_PERCENT ? fmtNum(l.TRADE_DISC_PERCENT) : '—'}</td>
+                    <td class="num">${fmtNum(l.Net_Unit_Price)}</td>
+                    <td class="num">${fmtNum(l.Line_Total)}</td>
+                    <td>${lineBadge(l.LINE_STATUS)}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+              <tfoot>
+                <tr class="totals-row">
+                  <td colspan="9" style="text-align:right; padding-right:1rem; font-size:0.75rem; color:var(--muted);">ORDER TOTAL</td>
+                  <td class="num">${fmtNum(grandTotal)}</td>
+                  <td></td>
+                </tr>
+                <tr class="totals-row">
+                  <td colspan="9" style="text-align:right; padding-right:1rem; font-size:0.75rem; color:var(--muted);">TOTAL SHIPPED</td>
+                  <td class="num">${fmtNum(totalShipped)}</td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>`;
+    });
+
+    container.innerHTML = html;
+  }
+
+  async function runSearch() {
+    const customer = document.getElementById('inp-customer').value.trim();
+    const orderId  = document.getElementById('inp-order').value.trim();
+    const status   = document.getElementById('status');
+    const btn      = document.getElementById('btn-search');
+
+    if (!customer && !orderId) {
+      status.innerHTML = '<span class="err">Please enter a customer name or order ID.</span>';
+      return;
+    }
+
+    btn.disabled = true;
+    status.innerHTML = '<span class="spinner"></span>Searching...';
+    document.getElementById('results').innerHTML = '';
+
+    const params = new URLSearchParams();
+    if (customer) params.set('customer_name', customer);
+    if (orderId)  params.set('order_id', orderId);
+
+    try {
+      const res  = await fetch('/api/order-search?' + params.toString());
+      const data = await res.json();
+
+      if (data.error) {
+        status.innerHTML = `<span class="err">Error: ${data.error}</span>`;
+        document.getElementById('results').innerHTML = '';
+      } else {
+        const orderCount = Object.keys(groupByOrder(data.results)).length;
+        status.innerHTML = `<span class="count">${data.count}</span> line(s) across <span class="count">${orderCount}</span> order(s)`;
+        renderResults(data.results);
+      }
+    } catch (e) {
+      status.innerHTML = `<span class="err">Request failed: ${e.message}</span>`;
+    } finally {
+      btn.disabled = false;
+    }
+  }
+</script>
+</body>
+</html>

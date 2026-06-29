@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>{{ title }}</title>
+
+  <link
+    rel="stylesheet"
+    href="{{ url_for('static', filename='css/hc-ui.css') }}"
+  >
+
+  <script
+    defer
+    src="{{ url_for('static', filename='js/hc-ui.js') }}"
+  ></script>
+</head>
+<body>
+  {% include 'components/topbar.html' %}
+
+  <div class="app-root">
+    {% block content %}
+    {% endblock %}
+  </div>
+</body>
+</html>
+

@@ -1,0 +1,814 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>COA Order Lookup — HC Heat Exchangers</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+<style>
+  :root {
+    --base:#f5f6f8;
+    --surface:#ffffff;
+    --surface2:#f1f3f5;
+    --surface3:#e9ecef;
+    --border:#d8dde3;
+    --accent:#e30613;
+    --highlight:#ff4d57;
+    --muted:#6c757d;
+    --text:#1f2933;
+    --text-dim:#4b5563;
+    --shadow:0 14px 40px rgba(15,23,42,.08);
+    --shadow-sm:0 8px 22px rgba(15,23,42,.06);
+    --radius:22px;
+
+    --status-open:#2e7d32; --status-open-bg:#e9f5ec;
+    --status-closed:#6c757d; --status-closed-bg:#f1f3f5;
+    --status-backorder:#c77700; --status-backorder-bg:#fff4e5;
+    --status-shipped:#0077b6; --status-shipped-bg:#e6f4fa;
+    --status-invoiced:#6a1b9a; --status-invoiced-bg:#f3e8fb;
+    --status-hold:#b00020; --status-hold-bg:#fdebec;
+    --status-cancelled:#8d6e63; --status-cancelled-bg:#f5f0ed;
+    --status-quote:#005f73; --status-quote-bg:#e6f3f6;
+    --status-picked:#2d6a4f; --status-picked-bg:#e8f5ee;
+    --status-complete:#059669; --status-complete-bg:#ecfdf5;
+    --status-unknown:#adb5bd; --status-unknown-bg:#f8f9fa;
+  }
+
+  [data-theme="dark"] {
+    --base:#0b0d10;
+    --surface:#15181d;
+    --surface2:#1f242b;
+    --surface3:#2a313a;
+    --border:#343b45;
+    --muted:#9ca3af;
+    --text:#f3f4f6;
+    --text-dim:#cbd5e1;
+    --shadow:0 18px 50px rgba(0,0,0,.34);
+    --shadow-sm:0 10px 28px rgba(0,0,0,.24);
+
+    --status-open-bg:#0d2318; --status-closed-bg:#1a1a22; --status-backorder-bg:#261508;
+    --status-shipped-bg:#071d27; --status-invoiced-bg:#160d24; --status-hold-bg:#260808;
+    --status-cancelled-bg:#1c1208; --status-quote-bg:#071519; --status-picked-bg:#071c12;
+    --status-complete-bg:#062e1a; --status-unknown-bg:#1c1917;
+  }
+
+  * { box-sizing:border-box; }
+  body {
+    margin:0;
+    min-height:100vh;
+    background:
+      radial-gradient(circle at 5% 5%, rgba(227,6,19,.12), transparent 34%),
+      radial-gradient(circle at 95% 10%, rgba(255,77,87,.10), transparent 28%),
+      var(--base);
+    color:var(--text);
+    font-family:'Syne', sans-serif;
+  }
+  body::before {
+    content:''; position:fixed; inset:0; pointer-events:none; opacity:.38; z-index:0;
+    background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='.04'/%3E%3C/svg%3E");
+  }
+
+  .app { position:relative; z-index:1; max-width:1320px; margin:0 auto; padding:24px 18px 80px; }
+  .mono, .topbar-sub, .topbar-badge, .search-label, .section-heading, .badge, .dr-value, .td-mono { font-family:'JetBrains Mono', monospace; }
+
+  .topbar {
+    display:grid; grid-template-columns:auto 1fr auto auto auto; gap:.85rem; align-items:center;
+    margin-bottom:1rem;
+  }
+  .logo-mark { width:46px; height:46px; border-radius:16px; background:var(--accent); color:#fff; display:grid; place-items:center; font-weight:800; box-shadow:0 12px 30px rgba(227,6,19,.25); }
+  .topbar-title { font-size:1.25rem; font-weight:800; letter-spacing:-.03em; }
+  .topbar-sub { color:var(--muted); font-size:.72rem; }
+  .topbar-spacer { display:none; }
+  .topbar-badge { color:var(--accent); border:1px solid rgba(227,6,19,.35); background:rgba(227,6,19,.08); padding:.43rem .65rem; border-radius:999px; font-size:.68rem; white-space:nowrap; }
+
+  .btn-soft, .print-btn {
+    background:rgba(255,255,255,.55); color:var(--text); border:1px solid var(--border);
+    border-radius:999px; backdrop-filter:blur(10px);
+  }
+  [data-theme="dark"] .btn-soft, [data-theme="dark"] .print-btn { background:rgba(31,36,43,.7); }
+  .btn-soft:hover, .print-btn:hover { border-color:var(--accent); color:var(--accent); }
+
+  .hero-bento {
+    display:grid; grid-template-columns:1.35fr .85fr .85fr; gap:1rem; margin-bottom:1.25rem;
+  }
+  .bento-card, .search-card, .order-card, .payment-card, .customer-banner {
+    background:linear-gradient(180deg, rgba(255,255,255,.86), rgba(255,255,255,.72));
+    border:1px solid rgba(216,221,227,.9); border-radius:var(--radius); color:var(--text); box-shadow:var(--shadow-sm);
+  }
+  [data-theme="dark"] .bento-card, [data-theme="dark"] .search-card, [data-theme="dark"] .order-card, [data-theme="dark"] .payment-card, [data-theme="dark"] .customer-banner {
+    background:linear-gradient(180deg, rgba(21,24,29,.92), rgba(21,24,29,.78));
+    border-color:var(--border);
+  }
+  .hero-card { padding:1.35rem; min-height:170px; position:relative; overflow:hidden; }
+  .hero-card::after { content:''; position:absolute; right:-70px; bottom:-70px; width:180px; height:180px; border-radius:50%; background:rgba(227,6,19,.12); }
+  .hero-kicker { color:var(--accent); font-size:.75rem; text-transform:uppercase; letter-spacing:.12em; font-weight:800; margin-bottom:.45rem; }
+  .hero-title { font-size:clamp(1.55rem, 3vw, 2.7rem); font-weight:800; line-height:.98; letter-spacing:-.06em; margin:0; }
+  .hero-text { color:var(--muted); max-width:620px; margin-top:.8rem; font-size:.92rem; }
+  .mini-metric { padding:1.2rem; min-height:170px; display:flex; flex-direction:column; justify-content:space-between; }
+  .mini-label { color:var(--muted); font-size:.72rem; text-transform:uppercase; letter-spacing:.1em; font-family:'JetBrains Mono', monospace; }
+  .mini-value { font-size:2rem; font-weight:800; color:var(--highlight); line-height:1; font-family:'JetBrains Mono', monospace; }
+  .mini-note { color:var(--text-dim); font-size:.8rem; }
+
+  .search-panel { display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1.25rem; }
+  .search-card { padding:1.15rem; position:relative; box-shadow:var(--shadow-sm); }
+  .search-label, .section-heading, .bc-title { color:var(--muted); text-transform:uppercase; letter-spacing:.095em; font-size:.72rem; font-weight:800; margin-bottom:.72rem; display:flex; align-items:center; gap:.45rem; }
+  .search-label svg, .bc-title svg { color:var(--accent); }
+  .search-input { background:var(--surface2); border-color:var(--border); color:var(--text); border-radius:14px; padding:.72rem .85rem; }
+  .search-input:focus { background:var(--surface); border-color:var(--accent); box-shadow:0 0 0 .2rem rgba(227,6,19,.15); color:var(--text); }
+  .search-btn, .btn-hc { background:var(--accent); color:#fff; border:1px solid var(--accent); border-radius:14px; }
+  .search-btn:hover, .btn-hc:hover { background:var(--highlight); border-color:var(--highlight); color:#fff; }
+
+  .live-results { position:absolute; top:calc(100% + 8px); left:0; right:0; background:var(--surface); border:1px solid var(--border); border-radius:16px; z-index:1000; max-height:280px; overflow:auto; box-shadow:var(--shadow); display:none; }
+  .live-results.open { display:block; }
+  .live-result-item { padding:.8rem 1rem; cursor:pointer; border-bottom:1px solid var(--border); display:flex; gap:.75rem; align-items:center; }
+  .live-result-item:hover { background:var(--surface2); }
+  .lri-id { color:var(--accent); min-width:58px; font-family:'JetBrains Mono', monospace; font-size:.78rem; }
+  .lri-name { flex:1; font-weight:800; font-size:.9rem; }
+  .lri-city { color:var(--muted); font-size:.75rem; }
+
+  .tabs { display:flex; gap:.6rem; margin-bottom:1.15rem; }
+  .tab { padding:.58rem 1rem; background:var(--surface); border:1px solid var(--border); border-radius:999px; cursor:pointer; color:var(--text-dim); font-weight:800; box-shadow:var(--shadow-sm); }
+  .tab.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+
+  .breadcrumb { display:none; align-items:center; gap:.5rem; margin-bottom:1rem; color:var(--muted); font-size:.82rem; font-family:'JetBrains Mono', monospace; }
+  .breadcrumb.visible { display:flex; }
+  .bc-item { cursor:pointer; } .bc-item:hover { color:var(--accent); } .bc-item.active { color:var(--text); cursor:default; }
+  .bc-sep { color:var(--border); }
+
+  #customer-orders-section, #order-detail-section, #outstanding-payments-section { display:none; }
+  .orders-grid { display:grid; grid-template-columns:repeat(12,1fr); gap:1rem; grid-auto-flow:dense; }
+  .order-card { grid-column:span 4; min-height:160px; padding:1.05rem 1.1rem; transition:.16s ease; cursor:pointer; position:relative; overflow:hidden; }
+  .order-card:nth-child(6n+1) { grid-column:span 5; grid-row:span 2; min-height:260px; }
+  .order-card:nth-child(6n+2), .order-card:nth-child(6n+5) { grid-column:span 3; }
+  .order-card:hover { transform:translateY(-3px); border-color:var(--accent); box-shadow:var(--shadow); }
+  .order-card::after { content:''; position:absolute; right:-48px; bottom:-48px; width:120px; height:120px; border-radius:50%; background:rgba(227,6,19,.08); pointer-events:none; }
+  .payments-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(360px,1fr)); gap:1rem; }
+  .payment-card { padding:1.1rem; }
+
+  .oc-top, .pc-top { display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; margin-bottom:.75rem; position:relative; z-index:1; }
+  .oc-id, .pc-id, .detail-order-id, .kpi-val, .cb-stat-val { color:var(--highlight); font-family:'JetBrains Mono', monospace; }
+  .oc-id, .pc-id { font-size:1.15rem; font-weight:800; }
+  .oc-po, .pc-customer, .oc-meta, .pc-meta, .kpi-lbl, .dr-label { color:var(--muted); font-size:.78rem; }
+  .oc-row, .pc-row, .data-row { display:flex; justify-content:space-between; align-items:baseline; gap:1rem; position:relative; z-index:1; }
+  .oc-value, .pc-value { color:var(--highlight); font-family:'JetBrains Mono', monospace; }
+  .progress-bar { height:7px; background:var(--border); border-radius:999px; margin-top:.85rem; overflow:hidden; position:relative; z-index:1; }
+  .progress-fill, .gauge-fill { height:100%; background:linear-gradient(90deg,var(--accent),var(--highlight)); }
+
+  .customer-banner { display:none; padding:1rem 1.25rem; margin-bottom:1.25rem; align-items:center; gap:1rem; box-shadow:var(--shadow-sm); }
+  .customer-banner.visible { display:flex; }
+  .cb-avatar { width:46px; height:46px; border-radius:16px; background:linear-gradient(135deg,var(--accent),var(--highlight)); color:#fff; display:grid; place-items:center; font-weight:800; box-shadow:0 12px 30px rgba(227,6,19,.2); }
+  .cb-name { font-weight:800; font-size:1rem; } .cb-id { color:var(--accent); font-family:'JetBrains Mono', monospace; font-size:.75rem; } .cb-meta { color:var(--muted); font-size:.78rem; }
+  .cb-stats { margin-left:auto; display:flex; gap:1.5rem; } .cb-stat { text-align:right; } .cb-stat-lbl { color:var(--muted); font-size:.7rem; }
+
+  .detail-header { display:grid; grid-template-columns:1fr auto; gap:1rem; align-items:start; margin-bottom:1rem; }
+  .detail-order-id { font-size:2.4rem; font-weight:800; line-height:1; letter-spacing:-.06em; } .detail-customer { color:var(--text-dim); margin-top:.4rem; }
+  .detail-actions { display:flex; gap:.5rem; align-items:center; }
+  .print-btn { padding:.5rem .8rem; display:inline-flex; gap:.4rem; align-items:center; }
+
+  .bento { display:grid; grid-template-columns:repeat(12,1fr); gap:1rem; margin-bottom:1rem; grid-auto-flow:dense; }
+  .bento-card { padding:1.15rem; box-shadow:var(--shadow-sm); position:relative; overflow:hidden; }
+  .bento-card.feature { background:linear-gradient(135deg, rgba(227,6,19,.12), rgba(255,255,255,.74)); }
+  [data-theme="dark"] .bento-card.feature { background:linear-gradient(135deg, rgba(227,6,19,.18), rgba(21,24,29,.85)); }
+  .span-3{grid-column:span 3}.span-4{grid-column:span 4}.span-5{grid-column:span 5}.span-6{grid-column:span 6}.span-7{grid-column:span 7}.span-8{grid-column:span 8}.span-12{grid-column:span 12}
+  .kpi-val { font-size:1.55rem; font-weight:800; } .data-row { border-bottom:1px solid var(--border); padding:.48rem 0; } .data-row:last-child { border-bottom:0; }
+  .dr-value { color:var(--text); text-align:right; font-size:.82rem; }
+  .gauge-top,.gauge-sub { display:flex; justify-content:space-between; } .gauge-label,.gauge-sub span { color:var(--muted); font-size:.78rem; } .gauge-pct { color:var(--highlight); font-family:'JetBrains Mono', monospace; font-weight:800; } .gauge-bar { height:8px; background:var(--border); border-radius:999px; overflow:hidden; }
+
+  .table-wrap { overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; font-size:.82rem; } th { color:var(--muted); font-size:.7rem; text-transform:uppercase; letter-spacing:.06em; padding:.7rem; white-space:nowrap; } td { padding:.78rem .7rem; border-top:1px solid var(--border); color:var(--text-dim); vertical-align:middle; } tbody tr:hover td { background:rgba(227,6,19,.04); color:var(--text); } .td-accent{ color:var(--highlight)!important; font-family:'JetBrains Mono', monospace; } .td-dim{ color:var(--muted)!important; }
+
+  .badge { display:inline-flex; align-items:center; gap:.35rem; padding:.32rem .65rem; border-radius:999px; font-size:.72rem; font-weight:800; white-space:nowrap; }
+  .badge::before { content:''; width:6px; height:6px; border-radius:50%; background:currentColor; }
+  .status-open{background:var(--status-open-bg);color:#198754;border:1px solid var(--status-open)} .status-closed{background:var(--status-closed-bg);color:#6c757d;border:1px solid var(--status-closed)} .status-backorder{background:var(--status-backorder-bg);color:#c77700;border:1px solid var(--status-backorder)} .status-shipped{background:var(--status-shipped-bg);color:#0077b6;border:1px solid var(--status-shipped)} .status-invoiced{background:var(--status-invoiced-bg);color:#6a1b9a;border:1px solid var(--status-invoiced)} .status-hold{background:var(--status-hold-bg);color:#b00020;border:1px solid var(--status-hold)} .status-cancelled{background:var(--status-cancelled-bg);color:#8d6e63;border:1px solid var(--status-cancelled)} .status-quote{background:var(--status-quote-bg);color:#005f73;border:1px solid var(--status-quote)} .status-picked{background:var(--status-picked-bg);color:#2d6a4f;border:1px solid var(--status-picked)} .status-complete{background:var(--status-complete-bg);color:#059669;border:1px solid var(--status-complete)} .status-unknown{background:var(--status-unknown-bg);color:var(--muted);border:1px solid var(--status-unknown)}
+
+  .state-panel { display:none; padding:3rem 1rem; text-align:center; color:var(--muted); } .state-panel.visible{display:block} .state-icon{font-size:2rem; opacity:.65; margin-bottom:.75rem} .state-panel strong{display:block; color:var(--text-dim); margin-bottom:.25rem}
+  .spinner { display:inline-block; width:20px; height:20px; border:2px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin .75s linear infinite; } @keyframes spin{to{transform:rotate(360deg)}}
+  .fade-in { animation:fadeUp .25s ease both; } @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  .no-lines { padding:1.5rem; text-align:center; color:var(--muted); font-family:'JetBrains Mono', monospace; }
+
+  @media(max-width:1050px) { .hero-bento{grid-template-columns:1fr 1fr}.hero-card{grid-column:span 2}.order-card,.order-card:nth-child(n){grid-column:span 6;grid-row:span 1;min-height:170px}.span-3,.span-4,.span-5,.span-6,.span-7,.span-8{grid-column:span 6} }
+  @media(max-width:760px) { .topbar{grid-template-columns:auto 1fr auto;}.topbar-badge{grid-column:1/-1;width:max-content}.hero-bento,.search-panel{grid-template-columns:1fr}.hero-card{grid-column:auto}.order-card,.order-card:nth-child(n),.span-3,.span-4,.span-5,.span-6,.span-7,.span-8{grid-column:span 12}.detail-header{grid-template-columns:1fr}.customer-banner{align-items:flex-start}.cb-stats{margin-left:0}.payments-grid{grid-template-columns:1fr} }
+  @media(max-width:560px) { .app{padding:16px 12px 60px}.customer-banner{display:none!important}.detail-actions{align-items:flex-start;flex-direction:column}.mini-metric{min-height:130px}.hero-card{min-height:auto}.hero-title{font-size:1.65rem} }
+
+  @media print {
+    .topbar,.breadcrumb,.print-btn,.theme-toggle,.search-panel,.tabs,.hero-bento{display:none!important} body{background:#fff!important;color:#000!important} .app{max-width:none;padding:0} .bento{display:block!important} .bento-card{break-inside:avoid;margin-bottom:1rem;background:#fff!important;border:1px solid #ccc!important;box-shadow:none!important} .badge{background:#f5f5f5!important;color:#000!important;border:1px solid #ccc!important} @page{margin:1cm;size:A4}
+  }
+</style>
+</head>
+<body>
+<div class="app container-fluid">
+  <header class="topbar">
+    <div class="logo-mark mono">HC</div>
+    <div>
+      <div class="topbar-title">Order Lookup</div>
+      <div class="topbar-sub">SSHCHEAT · CUSTOMER_ORDER</div>
+    </div>
+    <button id="suppliers-btn" class="btn btn-soft btn-sm mono" onclick="window.location.href='/suppliers/dashboard'">Suppliers</button>
+    <button id="gl-lookup-btn" class="btn btn-soft btn-sm mono" onclick="window.location.href='/gl'">GL Lookup</button>
+    <button id="theme-toggle" class="btn btn-soft btn-sm theme-toggle" type="button">🌙</button>
+    <div class="topbar-badge">INFOR VISUAL 11</div>
+  </header>
+
+  <section class="hero-bento">
+    <div class="bento-card hero-card">
+      <div class="hero-kicker">HC Heat Exchangers</div>
+      <h1 class="topbar-title">COA order lookup dashboard</h1>
+      <p class="hero-text mb-0">Search by order number or customer, drill into order financials, fulfilment, shipping details, contacts, and line items from one compact bento workspace.</p>
+    </div>
+    <div class="bento-card mini-metric">
+      <div class="mini-label">Primary Source</div>
+      <div class="mini-value">SQL</div>
+      <div class="mini-note">SSHCHEAT · INFOR Visual</div>
+    </div>
+    <div class="bento-card mini-metric">
+      <div class="mini-label">Workflow</div>
+      <div class="mini-value">COA</div>
+      <div class="mini-note">Lookup · Customer orders · Payments</div>
+    </div>
+  </section>
+
+  <section class="search-panel">
+    <div class="search-card">
+      <div class="search-label">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        COA / Order Number
+      </div>
+      <div class="input-group">
+        <input type="text" id="coa-input" class="form-control search-input" placeholder="e.g. 223322" autocomplete="off" />
+        <button class="btn search-btn px-3" onclick="lookupCOA()" type="button">Search</button>
+      </div>
+    </div>
+    <div class="search-card">
+      <div class="search-label">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        Customer Name / ID
+      </div>
+      <div class="position-relative">
+        <input type="text" id="customer-input" class="form-control search-input" placeholder="Start typing customer name…" autocomplete="off" />
+        <div class="live-results" id="live-results"></div>
+      </div>
+    </div>
+  </section>
+
+  <nav class="tabs">
+    <div class="tab active" data-tab="orders">Orders</div>
+    <div class="tab" data-tab="outstanding">Outstanding Payments</div>
+  </nav>
+
+  <div class="breadcrumb" id="breadcrumb"></div>
+  <div class="customer-banner" id="customer-banner"></div>
+
+  <div class="state-panel" id="loading-state"><div class="state-icon"><span class="spinner"></span></div><strong>Fetching data…</strong>Querying SSHCHEAT</div>
+  <div class="state-panel" id="error-state"><div class="state-icon">⚠</div><strong id="error-msg">Something went wrong</strong>Check the order number or try a different search.</div>
+  <div class="state-panel" id="empty-state"><div class="state-icon">○</div><strong>No records found</strong>No matching data was returned.</div>
+
+  <section id="customer-orders-section">
+    <div class="section-heading">Orders</div>
+    <div class="orders-grid" id="orders-grid"></div>
+  </section>
+
+  <section id="order-detail-section"></section>
+
+  <section id="outstanding-payments-section">
+    <div class="section-heading">Outstanding Payments</div>
+    <div class="search-panel">
+      <div class="search-card">
+          <div class="search-label">Date From</div>
+          <input type="date" id="date-from" class="form-control search-input" />
+      </div>
+      <div class="search-card">
+          <div class="search-label">Date To</div>
+          <div class="input-group">
+            <input type="date" id="date-to" class="form-control search-input" />
+            <button class="btn search-btn" onclick="loadOutstandingPayments()" type="button">Search</button>
+          </div>
+      </div>
+    </div>
+    <div class="payments-grid" id="payments-grid"></div>
+  </section>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+
+// ── State ──────────────────────────────────────────────
+let state = {
+  mode: 'idle', // idle | customer-orders | order-detail | outstanding
+  customerId: null,
+  customerName: null,
+  customerCity: null,
+  customerRep: null,
+  orders: [],
+};
+
+// ── Utilities ──────────────────────────────────────────
+function show(id)   { document.getElementById(id).style.display = 'block'; }
+function hide(id)   { document.getElementById(id).style.display = 'none'; }
+function showClass(id, cls) { document.getElementById(id).classList.add(cls); }
+function hideClass(id, cls) { document.getElementById(id).classList.remove(cls); }
+
+function showLoading() {
+  hideAll();
+  document.getElementById('loading-state').classList.add('visible');
+}
+function hideAll() {
+  ['loading-state','error-state','empty-state'].forEach(id => {
+    document.getElementById(id).classList.remove('visible');
+  });
+  document.getElementById('customer-orders-section').style.display = 'none';
+  document.getElementById('order-detail-section').style.display   = 'none';
+  document.getElementById('outstanding-payments-section').style.display = 'none';
+}
+function showError(msg) {
+  hideAll();
+  document.getElementById('error-msg').textContent = msg;
+  document.getElementById('error-state').classList.add('visible');
+}
+
+// ── Breadcrumb ─────────────────────────────────────────
+function setBreadcrumb(items) {
+  const el = document.getElementById('breadcrumb');
+  if (!items.length) { el.classList.remove('visible'); return; }
+  el.classList.add('visible');
+  el.innerHTML = items.map((item, i) => {
+    const isLast = i === items.length - 1;
+    const sep = i > 0 ? '<span class="bc-sep">›</span>' : '';
+    const cls = isLast ? 'bc-item active' : 'bc-item';
+    const click = item.action ? `onclick="${item.action}"` : '';
+    return `${sep}<span class="${cls}" ${click}>${item.label}</span>`;
+  }).join('');
+}
+
+// ── COA Lookup ─────────────────────────────────────────
+async function lookupCOA(id) {
+  const orderId = id || document.getElementById('coa-input').value.trim();
+  if (!orderId) return;
+  showLoading();
+  try {
+    const res = await fetch(`/api/order/${encodeURIComponent(orderId)}`);
+    if (!res.ok) { showError(`Order "${orderId}" not found.`); return; }
+    const data = await res.json();
+    renderOrderDetail(data, null);
+  } catch(e) {
+    showError('Network error — check server connection.');
+  }
+}
+
+document.getElementById('coa-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') lookupCOA();
+});
+
+// ── Customer Live Search ────────────────────────────────
+let searchTimer = null;
+const customerInput = document.getElementById('customer-input');
+const liveResults   = document.getElementById('live-results');
+
+customerInput.addEventListener('input', () => {
+  clearTimeout(searchTimer);
+  const q = customerInput.value.trim();
+  if (q.length < 2) { liveResults.classList.remove('open'); return; }
+  searchTimer = setTimeout(() => searchCustomers(q), 280);
+});
+
+customerInput.addEventListener('blur', () => {
+  setTimeout(() => liveResults.classList.remove('open'), 200);
+});
+
+async function searchCustomers(q) {
+  try {
+    const res = await fetch(`/api/customer/search?q=${encodeURIComponent(q)}`);
+    const data = await res.json();
+    renderLiveResults(data);
+  } catch(e) {}
+}
+
+function renderLiveResults(customers) {
+  if (!customers.length) { liveResults.classList.remove('open'); return; }
+  liveResults.innerHTML = customers.map(c => `
+    <div class="live-result-item" onclick="loadCustomerOrders('${c.id}', '${escHtml(c.name)}', '${escHtml(c.city||'')}', '${c.salesrep||''}')">
+      <span class="lri-id">${c.id}</span>
+      <span class="lri-name">${escHtml(c.name)}</span>
+      <span class="lri-city">${escHtml(c.city||'')}</span>
+    </div>
+  `).join('');
+  liveResults.classList.add('open');
+}
+
+// ── Customer Orders ─────────────────────────────────────
+async function loadCustomerOrders(customerId, customerName, city, rep) {
+  liveResults.classList.remove('open');
+  customerInput.value = customerName;
+  state.customerId   = customerId;
+  state.customerName = customerName;
+  state.customerCity = city;
+  state.customerRep  = rep;
+  showLoading();
+
+  try {
+    const res = await fetch(`/api/customer/${encodeURIComponent(customerId)}/orders`);
+    const orders = await res.json();
+    state.orders = orders;
+    state.mode   = 'customer-orders';
+
+    hideAll();
+
+    if (!orders.length) {
+      document.getElementById('empty-state').classList.add('visible');
+      renderCustomerBanner(customerId, customerName, city, rep, orders);
+      setBreadcrumb([{ label: 'Search' }, { label: customerName }]);
+      return;
+    }
+
+    renderCustomerBanner(customerId, customerName, city, rep, orders);
+    setBreadcrumb([{ label: 'Search' }, { label: customerName }]);
+    renderOrdersGrid(orders, customerId, customerName, city, rep);
+
+  } catch(e) {
+    showError('Failed to load customer orders.');
+  }
+}
+
+function renderCustomerBanner(id, name, city, rep, orders) {
+  const banner = document.getElementById('customer-banner');
+  const total = orders.reduce((s, o) => s + o.total_ordered_raw, 0);
+  const totalFmt = 'R' + total.toLocaleString('en-ZA', {minimumFractionDigits:2, maximumFractionDigits:2});
+  const initials = name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+  banner.innerHTML = `
+    <div class="cb-avatar">${initials}</div>
+    <div>
+      <div class="cb-name">${escHtml(name)}</div>
+      <div class="cb-id">${id}</div>
+      <div class="cb-meta">${escHtml(city||'')}${rep ? ' · Rep: ' + escHtml(rep) : ''}</div>
+    </div>
+    <div class="cb-stats">
+      <div class="cb-stat">
+        <div class="cb-stat-val">${orders.length}</div>
+        <div class="cb-stat-lbl">Total Orders</div>
+      </div>
+      <div class="cb-stat">
+        <div class="cb-stat-val">${totalFmt}</div>
+        <div class="cb-stat-lbl">Total Value</div>
+      </div>
+    </div>
+  `;
+  banner.classList.add('visible');
+}
+
+function renderOrdersGrid(orders, custId, custName, city, rep) {
+  const grid = document.getElementById('orders-grid');
+  grid.innerHTML = orders.map(o => {
+    const pct = o.total_ordered_raw > 0
+      ? Math.round(o.total_shipped_raw / o.total_ordered_raw * 100) : 0;
+    return `
+    <div class="order-card fade-in" onclick="drillToOrder('${o.id}','${custId}','${escHtml(custName)}','${escHtml(city||'')}','${escHtml(rep||'')}')">
+      <div class="oc-top">
+        <div>
+          <div class="oc-id">${o.id}</div>
+          <div class="oc-po">${o.customer_po_ref ? 'PO: ' + escHtml(o.customer_po_ref) : '&nbsp;'}</div>
+        </div>
+        <span class="badge ${o.status_color}">${o.status_label}</span>
+      </div>
+      <div class="oc-row">
+        <span class="oc-meta"><strong>${o.order_date || '—'}</strong></span>
+        <span class="oc-value">${o.total_ordered || '—'}</span>
+      </div>
+      ${o.site ? `<div class="oc-meta" style="margin-top:6px;font-size:10px;">${escHtml(o.site)}</div>` : ''}
+      <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+    </div>`;
+  }).join('');
+  document.getElementById('customer-orders-section').style.display = 'block';
+}
+
+// ── Drill to Order ──────────────────────────────────────
+async function drillToOrder(orderId, custId, custName, city, rep) {
+  showLoading();
+  try {
+    const res = await fetch(`/api/order/${encodeURIComponent(orderId)}`);
+    if (!res.ok) { showError(`Order "${orderId}" not found.`); return; }
+    const data = await res.json();
+    renderOrderDetail(data, { custId, custName, city, rep });
+  } catch(e) {
+    showError('Failed to load order detail.');
+  }
+}
+
+// ── Order Detail Renderer ───────────────────────────────
+function renderOrderDetail(data, fromCustomer) {
+  hideAll();
+  const h = data.header;
+  const lines = data.lines || [];
+  state.mode = 'order-detail';
+
+  // Breadcrumb
+  if (fromCustomer) {
+    setBreadcrumb([
+      { label: 'Search' },
+      { label: fromCustomer.custName, action: `loadCustomerOrders('${fromCustomer.custId}','${escHtml(fromCustomer.custName)}','${escHtml(fromCustomer.city)}','${escHtml(fromCustomer.rep)}')` },
+      { label: h.id }
+    ]);
+  } else {
+    setBreadcrumb([{ label: 'Search' }, { label: h.id }]);
+    document.getElementById('customer-banner').classList.remove('visible');
+  }
+
+  const pct = h.financials.shipped_pct;
+
+  // Build HTML
+  const html = `
+  <div class="detail-header fade-in">
+    <div>
+      <div class="detail-order-id">${h.id}</div>
+      <div class="detail-customer">
+        <strong>${escHtml(h.customer_name || h.customer_id)}</strong>
+        ${h.customer_id ? ` · ${h.customer_id}` : ''}
+        ${h.customer_po_ref ? ` · PO: ${escHtml(h.customer_po_ref)}` : ''}
+      </div>
+    </div>
+    <div class="detail-actions">
+      <button class="print-btn" onclick="window.print()" title="Print Order Details">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M6 9V2h12v7"/>
+          <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+          <rect x="6" y="14" width="12" height="8"/>
+        </svg>
+        Print
+      </button>
+      <span class="badge ${h.status_color}">${h.status_label}</span>
+    </div>
+  </div>
+
+  <!-- Row 1: Financials (7) + Sales (5) -->
+  <div class="bento">
+    <!-- Ordered value KPI -->
+    <div class="bento-card span-4 feature">
+      <div class="bc-title">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        Order Value
+      </div>
+      <div class="kpi-block">
+        <div class="kpi-val">${h.financials.total_ordered || '—'}</div>
+        <div class="kpi-lbl">Total Ordered · ${h.financials.currency}</div>
+      </div>
+    </div>
+
+    <!-- Fulfilment gauge -->
+    <div class="bento-card span-4">
+      <div class="bc-title">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        Fulfilment
+      </div>
+      <div class="gauge-wrap">
+        <div class="gauge-top">
+          <span class="gauge-label">Shipped vs Ordered</span>
+          <span class="gauge-pct">${pct}%</span>
+        </div>
+        <div class="gauge-bar"><div class="gauge-fill" style="width:${pct}%"></div></div>
+        <div class="gauge-sub">
+          <span>Shipped: ${h.financials.total_shipped || '—'}</span>
+          <span>Ordered: ${h.financials.total_ordered || '—'}</span>
+        </div>
+      </div>
+      <div class="data-row" style="margin-top:10px">
+        <span class="dr-label">Terms</span>
+        <span class="dr-value">${escHtml(h.terms.description || '—')}</span>
+      </div>
+    </div>
+
+    <!-- Sales -->
+    <div class="bento-card span-4">
+      <div class="bc-title">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Sales
+      </div>
+      ${dr('Rep', h.sales.rep)}
+      ${dr('Territory', h.sales.territory)}
+      ${dr('Site', h.shipping.site)}
+      ${dr('Entered by', h.entered_by)}
+    </div>
+  </div>
+
+  <!-- Row 2: Dates + Contact + Shipping -->
+  <div class="bento">
+    <div class="bento-card span-4">
+      <div class="bc-title">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        Dates
+      </div>
+      ${dr('Order Date',      h.dates.order)}
+      ${dr('Created',         h.dates.created)}
+      ${dr('Desired Ship',    h.dates.desired_ship)}
+      ${dr('Promise Date',    h.dates.promise)}
+      ${dr('Last Shipped',    h.dates.last_shipped)}
+      ${dr('Status Eff.',     h.dates.status_eff)}
+    </div>
+
+    <div class="bento-card span-4">
+      <div class="bc-title">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.17h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.91a16 16 0 0 0 6 6l.92-.92a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+        Contact
+      </div>
+      ${dr('Name',     h.contact.name || '—')}
+      ${dr('Position', h.contact.position)}
+      ${dr('Phone',    h.contact.phone)}
+      ${dr('Mobile',   h.contact.mobile)}
+      ${dr('Email',    h.contact.email, true)}
+      ${h.user_fields.user_1 ? dr('Project/Site', h.user_fields.user_1) : ''}
+    </div>
+
+    <div class="bento-card span-4">
+      <div class="bc-title">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        Shipping & Address
+      </div>
+      ${dr('Ship Via',  h.shipping.ship_via)}
+      ${dr('FOB',       h.shipping.fob)}
+      ${dr('Freight',   h.shipping.freight_terms)}
+      ${dr('Warehouse', h.shipping.warehouse)}
+      ${dr('Backorder', h.shipping.backorder === 'Y' ? 'Yes' : 'No')}
+      ${dr('Address',   [h.address.addr_1, h.address.city, h.address.country].filter(Boolean).join(', '))}
+    </div>
+  </div>
+
+  <!-- Line Items -->
+  <div class="bento-card span-12" style="grid-column:span 12; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:20px;">
+    <div class="bc-title" style="margin-bottom:16px">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+      Line Items
+      <span style="color:var(--accent); margin-left:4px">(${lines.length})</span>
+    </div>
+    ${renderLinesTable(lines)}
+  </div>
+  `;
+
+  const section = document.getElementById('order-detail-section');
+  section.innerHTML = html;
+  section.style.display = 'block';
+}
+
+function dr(label, val, isEmail) {
+  if (!val) return '';
+  const display = isEmail
+    ? `<a href="mailto:${val}" style="color:var(--highlight);text-decoration:none">${escHtml(val)}</a>`
+    : `<span class="dr-value">${escHtml(String(val))}</span>`;
+  return `<div class="data-row"><span class="dr-label">${label}</span>${display}</div>`;
+}
+
+function renderLinesTable(lines) {
+  if (!lines.length) return '<div class="no-lines">No line items found for this order.</div>';
+  return `
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Part ID</th>
+          <th>Description</th>
+          <th>Product</th>
+          <th>Status</th>
+          <th>Ord Qty</th>
+          <th>Ship Qty</th>
+          <th>Unit Price</th>
+          <th>Total Ordered</th>
+          <th>Total Shipped</th>
+          <th>Desired Ship</th>
+          <th>Last Shipped</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${lines.map(l => `
+        <tr>
+          <td class="td-mono td-dim">${l.line_no}</td>
+          <td class="td-mono" style="color:var(--highlight)">${escHtml(l.part_id || '—')}</td>
+          <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(l.description || '—')}</td>
+          <td class="td-mono td-dim">${escHtml(l.product_code || '—')}</td>
+          <td><span class="badge ${l.status_color}">${l.status_label}</span></td>
+          <td class="td-mono">${l.order_qty}</td>
+          <td class="td-mono">${l.shipped_qty}</td>
+          <td class="td-accent">${l.unit_price || '—'}</td>
+          <td class="td-accent">${l.total_ordered || '—'}</td>
+          <td class="td-mono">${l.total_shipped || '—'}</td>
+          <td class="td-mono td-dim">${l.desired_ship_date || '—'}</td>
+          <td class="td-mono td-dim">${l.last_shipped_date || '—'}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+  </div>`;
+}
+
+function escHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;');
+}
+
+// ── Tab Handlers ───────────────────────────────────────
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    const tabName = tab.dataset.tab;
+    hideAll();
+    if (tabName === 'orders') {
+      if (state.customerId) {
+        loadCustomerOrders(state.customerId, state.customerName, state.customerCity || '', state.customerRep || '');
+      }
+    } else if (tabName === 'outstanding') {
+      loadOutstandingPayments();
+    }
+  });
+});
+
+// ── Outstanding Payments ───────────────────────────────
+async function loadOutstandingPayments() {
+  const dateFrom = document.getElementById('date-from').value;
+  const dateTo = document.getElementById('date-to').value;
+  showLoading();
+  try {
+    const params = new URLSearchParams();
+    if (dateFrom) params.append('date_from', dateFrom);
+    if (dateTo) params.append('date_to', dateTo);
+    const res = await fetch(`/api/outstanding-payments?${params}`);
+    if (!res.ok) throw new Error('Failed to load outstanding payments');
+    const payments = await res.json();
+    renderOutstandingPayments(payments);
+  } catch (e) {
+    showError('Failed to load outstanding payments: ' + e.message);
+  }
+}
+
+function renderOutstandingPayments(payments) {
+  hideAll();
+  const grid = document.getElementById('payments-grid');
+  if (!payments.length) {
+    document.getElementById('empty-state').classList.add('visible');
+    return;
+  }
+  grid.innerHTML = payments.map(p => `
+    <div class="payment-card">
+      <div class="pc-top">
+        <div>
+          <div class="pc-id">${escHtml(p.id)}</div>
+          <div class="pc-customer">${escHtml(p.customer_name || 'Unknown')}</div>
+        </div>
+        <span class="badge ${p.status_color}">${escHtml(p.status_label)}</span>
+      </div>
+      <div class="pc-row">
+        <span class="pc-meta">PO Ref</span>
+        <span class="pc-value">${escHtml(p.customer_po_ref || '—')}</span>
+      </div>
+      <div class="pc-row">
+        <span class="pc-meta">Order Date</span>
+        <span class="pc-value">${escHtml(p.order_date || '—')}</span>
+      </div>
+      <div class="pc-row">
+        <span class="pc-meta">Outstanding</span>
+        <span class="pc-value">${escHtml(p.amt_outstanding)}</span>
+      </div>
+      <div class="pc-row">
+        <span class="pc-meta">Total Ordered</span>
+        <span class="pc-value">${escHtml(p.total_ordered)}</span>
+      </div>
+      <div class="pc-row">
+        <span class="pc-meta">Total Shipped</span>
+        <span class="pc-value">${escHtml(p.total_shipped)}</span>
+      </div>
+    </div>
+  `).join('');
+  document.getElementById('outstanding-payments-section').style.display = 'block';
+}
+
+// ── Theme Switcher ─────────────────────────────
+const toggleBtn = document.getElementById('theme-toggle');
+
+// Load saved theme
+const savedTheme = localStorage.getItem('theme') || 'light';
+document.documentElement.setAttribute('data-theme', savedTheme);
+updateThemeIcon(savedTheme);
+
+// Toggle click
+toggleBtn.addEventListener('click', () => {
+  const current = document.documentElement.getAttribute('data-theme');
+  const next = current === 'dark' ? 'light' : 'dark';
+
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('theme', next);
+  updateThemeIcon(next);
+});
+
+function updateThemeIcon(theme) {
+  toggleBtn.textContent = theme === 'dark' ? '☀️' : '🌙';
+}
+
+</script>
+</body>
+</html>

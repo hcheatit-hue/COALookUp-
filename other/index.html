@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LaunchPad — App Manager</title>
+<meta name="description" content="Manage and launch your local apps with one click.">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=DM+Sans:wght@400;500;700&display=swap');
+
+  :root {
+    --bg:            #f5f4f0;
+    --surface:       #ffffff;
+    --border:        #d0cec8;
+    --border-strong: #9a9690;
+    --text:          #1a1916;
+    --muted:         #6b6860;
+    --accent:        #1a5c2a;
+    --accent-fg:     #ffffff;
+    --accent-hover:  #134820;
+    --danger:        #8b1a1a;
+    --danger-bg:     #fff0f0;
+    --running:       #1a5c2a;
+    --running-bg:    #f0fff4;
+    --yellow:        #7a5c00;
+    --yellow-bg:     #fffbeb;
+    --mono:          'IBM Plex Mono', monospace;
+    --sans:          'DM Sans', sans-serif;
+    --radius:        6px;
+    --shadow:        0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    font-size: 1rem;
+    line-height: 1.5;
+  }
+
+  .skip-link {
+    position: absolute; top: -999px; left: 0;
+    background: var(--accent); color: var(--accent-fg);
+    padding: 8px 16px; font-weight: 700; text-decoration: none;
+    border-radius: 0 0 var(--radius) 0; z-index: 9999;
+  }
+  .skip-link:focus { top: 0; }
+
+  :focus-visible {
+    outline: 3px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: var(--radius);
+  }
+
+  .wrapper { max-width: 900px; margin: 0 auto; padding: 32px 20px 80px; }
+
+  header {
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    padding-bottom: 20px; border-bottom: 2px solid var(--text); margin-bottom: 24px;
+  }
+
+  .logo { display: flex; align-items: baseline; gap: 10px; }
+  .logo h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.5px; color: var(--text); }
+  .logo-tag { font-family: var(--mono); font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1.5px; }
+
+  .status-bar {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 10px 14px; margin-bottom: 20px; box-shadow: var(--shadow);
+  }
+
+  .status-pill { display: inline-flex; align-items: center; gap: 7px; font-family: var(--mono); font-size: 0.75rem; font-weight: 600; }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border-strong); flex-shrink: 0; }
+  .status-pill.online .status-dot { background: var(--running); animation: blink 2s infinite; }
+  .status-pill.online { color: var(--running); }
+  .status-pill.offline .status-dot { background: var(--danger); }
+  .status-pill.offline { color: var(--danger); }
+
+  @keyframes blink { 0%,100%{opacity:1} 60%{opacity:0.35} }
+
+  .app-count { font-family: var(--mono); font-size: 0.75rem; color: var(--muted); }
+
+  .btn-add {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 18px; background: var(--accent); color: var(--accent-fg);
+    border: 2px solid var(--accent); border-radius: var(--radius);
+    font-family: var(--sans); font-size: 0.9rem; font-weight: 700;
+    cursor: pointer; transition: background 0.15s, border-color 0.15s; margin-bottom: 20px;
+  }
+  .btn-add:hover, .btn-add:focus-visible { background: var(--accent-hover); border-color: var(--accent-hover); outline: none; }
+
+  .app-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+
+  .app-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 16px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 10px;
+    transition: border-color 0.15s, box-shadow 0.15s; position: relative;
+  }
+  .app-card:hover { border-color: var(--border-strong); box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+  .app-card.is-running { border-left: 3px solid var(--running); }
+
+  .card-top { display: flex; align-items: flex-start; gap: 12px; }
+  .app-icon { width: 40px; height: 40px; border-radius: var(--radius); background: var(--bg); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 1.3rem; flex-shrink: 0; user-select: none; }
+  .app-info { flex: 1; min-width: 0; }
+  .app-name { font-size: 0.95rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
+
+  .app-badge { display: inline-block; font-family: var(--mono); font-size: 0.62rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; padding: 2px 6px; border-radius: 3px; margin-top: 3px; }
+  .badge-node   { background: #e6f4ea; color: #1a5c2a; }
+  .badge-python { background: var(--yellow-bg); color: var(--yellow); }
+  .badge-other  { background: #eef; color: #334; }
+
+  .running-badge { display: inline-flex; align-items: center; gap: 4px; font-family: var(--mono); font-size: 0.62rem; font-weight: 600; color: var(--running); background: var(--running-bg); border: 1px solid #b2dfca; border-radius: 3px; padding: 2px 6px; margin-left: 4px; }
+  .running-badge::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: var(--running); animation: blink 1.5s infinite; }
+
+  .card-meta { display: flex; flex-direction: column; gap: 4px; }
+  .meta-row { display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 0.7rem; color: var(--muted); overflow: hidden; }
+  .meta-row span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .meta-row svg { flex-shrink: 0; opacity: 0.5; }
+
+  .card-actions { display: flex; gap: 6px; margin-top: 2px; }
+
+  .btn-launch {
+    flex: 1; padding: 8px 12px; background: var(--accent); color: var(--accent-fg);
+    border: 2px solid var(--accent); border-radius: var(--radius);
+    font-family: var(--sans); font-size: 0.82rem; font-weight: 700; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 5px;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .btn-launch:hover, .btn-launch:focus-visible { background: var(--accent-hover); border-color: var(--accent-hover); outline: none; }
+  .btn-launch:disabled { opacity: 0.55; cursor: wait; }
+  .btn-launch.running { background: var(--running-bg); color: var(--running); border-color: #b2dfca; }
+  .btn-launch.running:hover { background: #d4f0e0; border-color: var(--running); }
+
+  .btn-sm { width: 34px; height: 34px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); color: var(--muted); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; flex-shrink: 0; }
+  .btn-sm:hover, .btn-sm:focus-visible { background: var(--surface); border-color: var(--border-strong); color: var(--text); outline: none; }
+  .btn-sm.danger:hover, .btn-sm.danger:focus-visible { background: var(--danger-bg); border-color: var(--danger); color: var(--danger); }
+
+  .empty-state { grid-column: 1 / -1; text-align: center; padding: 48px 20px; color: var(--muted); border: 1px dashed var(--border); border-radius: var(--radius); background: var(--surface); }
+  .empty-state p { font-size: 0.9rem; margin-top: 8px; }
+
+  .overlay { position: fixed; inset: 0; background: rgba(26,25,22,0.55); z-index: 200; display: flex; align-items: center; justify-content: center; padding: 20px; opacity: 0; pointer-events: none; transition: opacity 0.18s; }
+  .overlay.open { opacity: 1; pointer-events: all; }
+
+  .modal { background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius); padding: 28px; width: 100%; max-width: 480px; box-shadow: 0 8px 32px rgba(0,0,0,0.18); transform: translateY(8px); transition: transform 0.18s; }
+  .overlay.open .modal { transform: translateY(0); }
+
+  .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+  .modal-header h2 { font-size: 1.1rem; font-weight: 700; }
+
+  .btn-close { width: 28px; height: 28px; background: none; border: 1px solid var(--border); border-radius: var(--radius); cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--muted); transition: all 0.15s; }
+  .btn-close:hover { background: var(--bg); color: var(--text); border-color: var(--border-strong); }
+
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: 0.8rem; font-weight: 700; margin-bottom: 5px; color: var(--text); }
+  .field input, .field select { width: 100%; background: var(--bg); border: 1.5px solid var(--border); border-radius: var(--radius); padding: 9px 11px; color: var(--text); font-family: var(--mono); font-size: 0.82rem; outline: none; transition: border-color 0.15s; }
+  .field input:focus, .field select:focus { border-color: var(--accent); background: var(--surface); }
+  .field input::placeholder { color: var(--muted); }
+  .field-hint { font-size: 0.72rem; color: var(--muted); margin-top: 4px; }
+
+  .icon-picker { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+  .icon-opt { width: 38px; height: 38px; border-radius: var(--radius); border: 1.5px solid var(--border); background: var(--bg); font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.12s; }
+  .icon-opt:hover, .icon-opt.selected { border-color: var(--accent); background: #e6f4ea; }
+
+  .modal-actions { display: flex; gap: 8px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
+
+  .btn-primary { flex: 2; padding: 10px 16px; background: var(--accent); color: var(--accent-fg); border: 2px solid var(--accent); border-radius: var(--radius); font-family: var(--sans); font-size: 0.88rem; font-weight: 700; cursor: pointer; transition: background 0.15s, border-color 0.15s; }
+  .btn-primary:hover, .btn-primary:focus-visible { background: var(--accent-hover); border-color: var(--accent-hover); outline: none; }
+
+  .btn-secondary { flex: 1; padding: 10px 16px; background: var(--surface); color: var(--text); border: 1.5px solid var(--border); border-radius: var(--radius); font-family: var(--sans); font-size: 0.88rem; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+  .btn-secondary:hover, .btn-secondary:focus-visible { border-color: var(--border-strong); background: var(--bg); outline: none; }
+
+  .btn-danger-solid { flex: 1; padding: 10px 16px; background: var(--danger); color: #fff; border: 2px solid var(--danger); border-radius: var(--radius); font-family: var(--sans); font-size: 0.88rem; font-weight: 700; cursor: pointer; transition: opacity 0.15s; }
+  .btn-danger-solid:hover { opacity: 0.88; }
+
+  .confirm-body { text-align: center; }
+  .confirm-body .confirm-icon { font-size: 2rem; margin-bottom: 10px; }
+  .confirm-body h3 { font-size: 1rem; font-weight: 700; margin-bottom: 6px; }
+  .confirm-body p { font-size: 0.82rem; color: var(--muted); font-family: var(--mono); margin-bottom: 4px; }
+
+  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(60px); background: var(--text); color: #fff; border-radius: var(--radius); padding: 10px 18px; font-size: 0.82rem; font-weight: 600; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.2); z-index: 999; transition: transform 0.25s cubic-bezier(0.34,1.56,0.64,1); max-width: calc(100vw - 40px); }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  .offline-banner { background: var(--danger-bg); border: 1px solid #f5c6c6; border-radius: var(--radius); padding: 12px 16px; font-size: 0.84rem; color: var(--danger); display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+  .offline-banner code { font-family: var(--mono); background: rgba(139,26,26,0.08); padding: 1px 5px; border-radius: 3px; font-size: 0.82rem; }
+
+  @media (max-width: 480px) {
+    header { flex-direction: column; align-items: flex-start; }
+    .app-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<a href="#main" class="skip-link">Skip to content</a>
+<div role="status" aria-live="polite" aria-atomic="true" id="liveRegion" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);"></div>
+
+<div class="wrapper">
+  <header role="banner">
+    <div class="logo">
+      <h1>⚡ LaunchPad</h1>
+      <span class="logo-tag">App Manager</span>
+    </div>
+    <div class="status-pill" id="serverStatus" role="status" aria-label="Server status">
+      <span class="status-dot" aria-hidden="true"></span>
+      <span id="serverLabel">Checking…</span>
+    </div>
+  </header>
+
+  <main id="main">
+    <div id="offlineBanner" class="offline-banner" role="alert" hidden>
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/><path d="M8 5v3.5M8 10.5v.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      Server offline — open Command Prompt and run: <code>python server.py</code>
+    </div>
+
+    <div class="status-bar" aria-label="Dashboard summary">
+      <span class="app-count" id="appCountLabel">— apps registered</span>
+      <span style="font-size:0.72rem;color:var(--muted);font-family:var(--mono)">SERVER:3111</span>
+    </div>
+
+    <button class="btn-add" onclick="openModal()" aria-label="Register a new app">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      Register New App
+    </button>
+
+    <div class="app-grid" id="appGrid" role="list" aria-label="Registered apps">
+      <div class="empty-state" role="listitem">
+        <div style="font-size:2rem" aria-hidden="true">⏳</div>
+        <p>Loading apps…</p>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Add / Edit Modal -->
+<div class="overlay" id="overlay" role="dialog" aria-modal="true" aria-labelledby="modalTitle" onclick="handleOverlayClick(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modalTitle">Register App</h2>
+      <button class="btn-close" onclick="closeModal()" aria-label="Close dialog">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M1 1l10 10M11 1L1 11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+
+    <div class="field">
+      <label for="f-name">App Name</label>
+      <input type="text" id="f-name" placeholder="e.g. Reports Dashboard" autocomplete="off" />
+    </div>
+    <div class="field">
+      <label for="f-type">App Type</label>
+      <select id="f-type">
+        <option value="node">Node.js / npm</option>
+        <option value="python">Python</option>
+        <option value="other">Other</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="f-path">Folder Path</label>
+      <input type="text" id="f-path" placeholder="e.g. C:\Users\you\projects\my-app" autocomplete="off" />
+      <div class="field-hint">Full path to the folder containing your app</div>
+    </div>
+    <div class="field">
+      <label for="f-cmd">Start Command</label>
+      <input type="text" id="f-cmd" placeholder="e.g. npm run start  or  python app.py" autocomplete="off" />
+    </div>
+    <div class="field">
+      <label>Icon</label>
+      <div class="icon-picker" id="iconPicker" role="radiogroup" aria-label="Choose an icon"></div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn-primary" onclick="saveApp()">Save App</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm Delete Modal -->
+<div class="overlay" id="confirmOverlay" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+  <div class="modal">
+    <div class="confirm-body">
+      <div class="confirm-icon" aria-hidden="true">🗑</div>
+      <h3 id="confirmTitle">Remove this app?</h3>
+      <p id="confirmMsg">This will remove the app from LaunchPad.</p>
+      <p style="margin-top:4px;font-size:0.75rem;">Your actual files will not be deleted.</p>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeConfirm()">Keep it</button>
+      <button class="btn-danger-solid" onclick="confirmDelete()">Remove</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast" role="presentation" aria-hidden="true">
+  <span id="toastIcon" aria-hidden="true"></span>
+  <span id="toastMsg"></span>
+</div>
+
+<script>
+  const API   = 'http://localhost:3111/api';
+  const ICONS = ['🚀','⚡','🔥','💻','🌐','🛠','📦','🐍','🤖','🧩','🎯','🔧','🌿','📡','🔑','💡'];
+
+  let apps = [], editingId = null, deleteTargetId = null, selectedIcon = '🚀';
+
+  async function checkServer() {
+    try {
+      const r = await fetch(`${API}/apps`, { signal: AbortSignal.timeout(2000) });
+      if (r.ok) {
+        document.getElementById('serverStatus').className = 'status-pill online';
+        document.getElementById('serverLabel').textContent = 'Server online';
+        document.getElementById('offlineBanner').hidden = true;
+        return true;
+      }
+    } catch {}
+    document.getElementById('serverStatus').className = 'status-pill offline';
+    document.getElementById('serverLabel').textContent = 'Server offline';
+    document.getElementById('offlineBanner').hidden = false;
+    return false;
+  }
+
+  async function loadApps() {
+    try {
+      const r = await fetch(`${API}/apps`);
+      apps = await r.json();
+      renderApps();
+    } catch {
+      document.getElementById('appGrid').innerHTML = `
+        <div class="empty-state" role="listitem">
+          <div style="font-size:1.8rem" aria-hidden="true">🔴</div>
+          <p>Cannot reach the server.<br>Open Command Prompt and run: <strong>python server.py</strong></p>
+        </div>`;
+    }
+  }
+
+  function renderApps() {
+    const grid  = document.getElementById('appGrid');
+    const count = apps.length;
+    document.getElementById('appCountLabel').textContent =
+      count === 0 ? 'No apps registered' : `${count} app${count !== 1 ? 's' : ''} registered`;
+
+    if (!count) {
+      grid.innerHTML = `<div class="empty-state" role="listitem"><div style="font-size:2rem" aria-hidden="true">🚀</div><p>No apps yet — click <strong>Register New App</strong> to add your first one.</p></div>`;
+      return;
+    }
+
+    grid.innerHTML = apps.map(app => {
+      const bc = app.type === 'node' ? 'badge-node' : app.type === 'python' ? 'badge-python' : 'badge-other';
+      const bl = app.type === 'node' ? 'Node.js'   : app.type === 'python' ? 'Python'       : 'Other';
+      return `
+        <article class="app-card ${app.running ? 'is-running' : ''}" id="card-${app.id}" role="listitem" aria-label="${esc(app.name)}${app.running ? ', running' : ''}">
+          <div class="card-top">
+            <div class="app-icon" aria-hidden="true">${app.icon || '🚀'}</div>
+            <div class="app-info">
+              <div class="app-name">${esc(app.name)}</div>
+              <span class="app-badge ${bc}">${bl}</span>
+              ${app.running ? '<span class="running-badge">Running</span>' : ''}
+            </div>
+          </div>
+          <div class="card-meta">
+            <div class="meta-row" title="${esc(app.path)}">
+              <svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true"><path d="M1 2.5h3l1 1.5h5v6H1V2.5z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+              <span>${esc(app.path)}</span>
+            </div>
+            <div class="meta-row" title="${esc(app.cmd)}">
+              <svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true"><path d="M2 3.5l2.5 2L2 7.5M5.5 7.5h3.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span>${esc(app.cmd)}</span>
+            </div>
+          </div>
+          <div class="card-actions">
+            ${app.running
+              ? `<button class="btn-launch running" onclick="stopApp('${app.id}')" aria-label="Mark ${esc(app.name)} as stopped">⏹ Mark Stopped</button>`
+              : `<button class="btn-launch" onclick="launchApp('${app.id}')" aria-label="Launch ${esc(app.name)}">▶ Launch</button>`
+            }
+            <button class="btn-sm" onclick="openModal('${app.id}')" aria-label="Edit ${esc(app.name)}" title="Edit">
+              <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><path d="M9.5 1.5l2 2-7 7H2.5v-2l7-7z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+            </button>
+            <button class="btn-sm danger" onclick="askDelete('${app.id}')" aria-label="Remove ${esc(app.name)}" title="Remove">
+              <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><path d="M2 3.5h9M5 3.5V2h3v1.5M4 3.5l.5 7h4l.5-7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+        </article>`;
+    }).join('');
+  }
+
+  async function launchApp(id) {
+    const btn = document.querySelector(`#card-${id} .btn-launch`);
+    if (btn) { btn.disabled = true; btn.textContent = 'Launching…'; }
+    try {
+      const r    = await fetch(`${API}/launch/${id}`, { method: 'POST' });
+      const data = await r.json();
+      if (data.ok) { showToast('▶️', `${data.message} — check the new cmd window`); await loadApps(); }
+      else { showToast('❌', data.error || 'Launch failed'); if (btn) { btn.disabled = false; btn.textContent = '▶ Launch'; } }
+    } catch {
+      showToast('❌', 'Cannot reach server — is server.py running?');
+      if (btn) { btn.disabled = false; btn.textContent = '▶ Launch'; }
+    }
+  }
+
+  async function stopApp(id) {
+    await fetch(`${API}/stop/${id}`, { method: 'POST' });
+    showToast('⏹', 'Marked as stopped — close the cmd window to fully stop');
+    await loadApps();
+  }
+
+  function buildIconPicker() {
+    document.getElementById('iconPicker').innerHTML = ICONS.map(ic => `
+      <button type="button" class="icon-opt ${ic===selectedIcon?'selected':''}"
+        onclick="selectIcon('${ic}')" aria-label="${ic}"
+        aria-pressed="${ic===selectedIcon}">${ic}</button>`).join('');
+  }
+
+  function selectIcon(ic) {
+    selectedIcon = ic;
+    document.querySelectorAll('.icon-opt').forEach(el => {
+      const a = el.textContent.trim() === ic;
+      el.classList.toggle('selected', a);
+      el.setAttribute('aria-pressed', a);
+    });
+  }
+
+  function openModal(id = null) {
+    editingId = id;
+    const app = id ? apps.find(a => a.id === id) : null;
+    document.getElementById('modalTitle').textContent = id ? 'Edit App' : 'Register App';
+    document.getElementById('f-name').value = app?.name || '';
+    document.getElementById('f-type').value = app?.type || 'node';
+    document.getElementById('f-path').value = app?.path || '';
+    document.getElementById('f-cmd').value  = app?.cmd  || '';
+    selectedIcon = app?.icon || '🚀';
+    buildIconPicker();
+    document.getElementById('overlay').classList.add('open');
+    setTimeout(() => document.getElementById('f-name').focus(), 50);
+  }
+
+  function closeModal() { document.getElementById('overlay').classList.remove('open'); editingId = null; }
+  function handleOverlayClick(e) { if (e.target === document.getElementById('overlay')) closeModal(); }
+
+  async function saveApp() {
+    const name = document.getElementById('f-name').value.trim();
+    const type = document.getElementById('f-type').value;
+    const path = document.getElementById('f-path').value.trim();
+    const cmd  = document.getElementById('f-cmd').value.trim();
+    if (!name || !path || !cmd) { showToast('⚠️', 'Please fill in all fields'); return; }
+    const payload = { name, type, path, cmd, icon: selectedIcon };
+    if (editingId) {
+      await fetch(`${API}/apps/${editingId}`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+      showToast('✏️', 'App updated');
+    } else {
+      await fetch(`${API}/apps`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+      showToast('✅', `${name} registered`);
+    }
+    closeModal();
+    await loadApps();
+  }
+
+  function askDelete(id) {
+    deleteTargetId = id;
+    const app = apps.find(a => a.id === id);
+    document.getElementById('confirmMsg').textContent = `"${app.name}" will be removed from LaunchPad.`;
+    document.getElementById('confirmOverlay').classList.add('open');
+    setTimeout(() => document.getElementById('confirmOverlay').querySelector('.btn-secondary').focus(), 50);
+  }
+
+  function closeConfirm() { document.getElementById('confirmOverlay').classList.remove('open'); deleteTargetId = null; }
+
+  async function confirmDelete() {
+    await fetch(`${API}/apps/${deleteTargetId}`, { method: 'DELETE' });
+    showToast('🗑', 'App removed');
+    closeConfirm();
+    await loadApps();
+  }
+
+  let toastTimer;
+  function showToast(icon, msg) {
+    clearTimeout(toastTimer);
+    document.getElementById('toastIcon').textContent = icon;
+    document.getElementById('toastMsg').textContent  = msg;
+    document.getElementById('liveRegion').textContent = msg;
+    document.getElementById('toast').classList.add('show');
+    toastTimer = setTimeout(() => {
+      document.getElementById('toast').classList.remove('show');
+      document.getElementById('liveRegion').textContent = '';
+    }, 4000);
+  }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { closeModal(); closeConfirm(); }
+  });
+
+  function esc(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  (async () => {
+    const online = await checkServer();
+    if (online) await loadApps();
+  })();
+
+  setInterval(async () => {
+    const online = await checkServer();
+    if (online) await loadApps();
+  }, 10000);
+</script>
+</body>
+</html>

@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VISUAL Admin — User &amp; Permission Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/hc-ui.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/hc-ui-user.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/hc-ui-dashboard.css') }}">
+</head>
+<body>
+
+<div class="dash-shell">
+
+  <!-- ================= SIDEBAR ================= -->
+  <aside class="dash-sidebar">
+    <div class="dash-brand">
+      <div class="gl-logo">V</div>
+      <div>
+        <div class="dash-brand-text">VISUAL Admin</div>
+        <div class="dash-brand-sub">read-only · permissions</div>
+      </div>
+    </div>
+
+    <div class="dash-nav-item active" data-view="overview">
+      <span class="dash-nav-icon">#</span> Overview
+    </div>
+    <div class="dash-nav-item" data-view="users">
+      <span class="dash-nav-icon">@</span> Users
+    </div>
+    <div class="dash-nav-item" data-view="groups">
+      <span class="dash-nav-icon">%</span> Groups
+    </div>
+    <div class="dash-nav-item" data-view="profiles">
+      <span class="dash-nav-icon">&</span> Profiles
+    </div>
+    <div class="dash-nav-item" data-view="search">
+      <span class="dash-nav-icon">?</span> Program / Menu Search
+    </div>
+  </aside>
+
+  <!-- ================= MAIN ================= -->
+  <main class="dash-main">
+
+    <!-- ============ OVERVIEW ============ -->
+    <section class="dash-view active" id="view-overview">
+      <h1 class="dash-page-title">Overview</h1>
+      <p class="dash-page-sub">A snapshot of users, groups, profiles, and access hygiene across this VISUAL environment.</p>
+
+      <div class="risk-banner">
+        <span>⚠</span>
+        <div>
+          <b>How "effective permission" is calculated:</b> direct user rule → group rule → profile rule → default (Full Access if nothing is set anywhere). This default-allow behavior was confirmed by observation against the Security Maintenance screen, not official Infor docs — treat numbers here as a strong guide, not a certified audit.
+        </div>
+      </div>
+
+      <div class="kpi-grid" id="kpiGrid">
+        <div class="kpi-tile"><div class="kpi-label">Total Users</div><div class="gl-kpi-value">—</div></div>
+      </div>
+
+      <div class="insights-grid">
+        <div class="insight-card">
+          <div class="section-title">Users with no group or profile</div>
+          <div id="noGroupList"><div class="skeleton-row"></div><div class="skeleton-row"></div></div>
+        </div>
+        <div class="insight-card">
+          <div class="section-title">Admin accounts</div>
+          <div id="adminList"><div class="skeleton-row"></div><div class="skeleton-row"></div></div>
+        </div>
+      </div>
+
+      <div class="insight-card" style="margin-top:0;">
+        <div class="section-title">Accounts with recent failed logins</div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>User</th><th>Failed Count</th><th>Last Failed</th></tr></thead>
+            <tbody id="failedLoginsBody"><tr><td colspan="3" class="empty-state">Loading…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ USERS ============ -->
+    <section class="dash-view" id="view-users">
+      <h1 class="dash-page-title">Users</h1>
+      <p class="dash-page-sub">Click a user to see their groups, profiles, and effective permission for every program.</p>
+
+      <div class="dash-toolbar">
+        <div class="field">
+          <label for="userSearchBox">Search users</label>
+          <input type="text" id="userSearchBox" placeholder="Filter by name...">
+        </div>
+        <div class="field" style="max-width:160px;">
+          <label for="userFlagFilter">Filter</label>
+          <select id="userFlagFilter">
+            <option value="">All users</option>
+            <option value="IS_ADMIN">Admins only</option>
+            <option value="IS_VISUAL_USER">VISUAL users only</option>
+            <option value="RESET_PW_NEXT_LOGIN">Pending PW reset</option>
+            <option value="FAILED_COUNT">Has failed logins</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>User</th><th>Admin</th><th>VISUAL User</th><th>Planner</th><th>Buyer</th><th>PW Reset Pending</th></tr>
+          </thead>
+          <tbody id="usersTableBody"><tr><td colspan="6" class="empty-state">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============ USER DETAIL (drill-down) ============ -->
+    <section class="dash-view" id="view-userDetail">
+      <span class="dash-back" data-back-to="users">&larr; Back to Users</span>
+      <h1 class="dash-page-title" id="userDetailTitle">User</h1>
+      <p class="dash-page-sub">Groups, profiles, and effective program access for this user.</p>
+
+      <div class="chip-row" id="userDetailChips"></div>
+
+      <div class="insights-grid" style="margin-bottom:18px;">
+        <div class="insight-card">
+          <div class="section-title">Groups</div>
+          <div class="table-wrap">
+            <table><thead><tr><th>Group</th><th>Description</th><th>Leader</th></tr></thead>
+              <tbody id="userGroupsBody"><tr><td colspan="3" class="empty-state">Loading…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="insight-card">
+          <div class="section-title">Profiles</div>
+          <div class="table-wrap">
+            <table><thead><tr><th>Profile</th><th>Description</th></tr></thead>
+              <tbody id="userProfilesBody"><tr><td colspan="2" class="empty-state">Loading…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="dash-toolbar">
+        <div class="field">
+          <label for="userProgramFilter">Filter programs</label>
+          <input type="text" id="userProgramFilter" placeholder="Type to filter...">
+        </div>
+        <div class="field" style="max-width:160px;">
+          <label for="userAccessFilter">Access</label>
+          <select id="userAccessFilter">
+            <option value="">All</option>
+            <option value="Y">Full Access</option>
+            <option value="R">Read Only</option>
+            <option value="N">No Access</option>
+          </select>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Menu String</th><th>Program ID</th><th>Permission</th><th>Source</th></tr></thead>
+          <tbody id="userProgramsBody"><tr><td colspan="4" class="empty-state">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============ GROUPS ============ -->
+    <section class="dash-view" id="view-groups">
+      <h1 class="dash-page-title">Groups</h1>
+      <p class="dash-page-sub">Click a group to see its members and any program rules assigned directly to the group.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Group ID</th><th>Description</th><th>Site</th><th>Members</th><th>Direct Program Rules</th></tr></thead>
+          <tbody id="groupsTableBody"><tr><td colspan="5" class="empty-state">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============ GROUP DETAIL ============ -->
+    <section class="dash-view" id="view-groupDetail">
+      <span class="dash-back" data-back-to="groups">&larr; Back to Groups</span>
+      <h1 class="dash-page-title" id="groupDetailTitle">Group</h1>
+      <p class="dash-page-sub">Members of this group, and program rules defined directly on it (these flow down to every member unless overridden personally).</p>
+
+      <div class="drill-grid">
+        <div class="insight-card">
+          <div class="section-title">Members</div>
+          <div class="member-list" id="groupMembersList"></div>
+        </div>
+        <div class="insight-card">
+          <div class="section-title">Direct Program Rules on this Group</div>
+          <div class="table-wrap">
+            <table><thead><tr><th>Menu String</th><th>Program ID</th><th>Permission</th></tr></thead>
+              <tbody id="groupProgramsBody"><tr><td colspan="3" class="empty-state">Loading…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ PROFILES ============ -->
+    <section class="dash-view" id="view-profiles">
+      <h1 class="dash-page-title">Profiles</h1>
+      <p class="dash-page-sub">Click a profile to see who's assigned to it and the program rules defined directly on it.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Profile ID</th><th>Description</th><th>Assigned Users</th><th>Direct Program Rules</th></tr></thead>
+          <tbody id="profilesTableBody"><tr><td colspan="4" class="empty-state">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============ PROFILE DETAIL ============ -->
+    <section class="dash-view" id="view-profileDetail">
+      <span class="dash-back" data-back-to="profiles">&larr; Back to Profiles</span>
+      <h1 class="dash-page-title" id="profileDetailTitle">Profile</h1>
+      <p class="dash-page-sub">Users assigned this profile, and program rules defined directly on it.</p>
+
+      <div class="drill-grid">
+        <div class="insight-card">
+          <div class="section-title">Assigned Users</div>
+          <div class="member-list" id="profileMembersList"></div>
+        </div>
+        <div class="insight-card">
+          <div class="section-title">Direct Program Rules on this Profile</div>
+          <div class="table-wrap">
+            <table><thead><tr><th>Menu String</th><th>Program ID</th><th>Permission</th></tr></thead>
+              <tbody id="profileProgramsBody"><tr><td colspan="3" class="empty-state">Loading…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ SEARCH ============ -->
+    <section class="dash-view" id="view-search">
+      <h1 class="dash-page-title">Program / Menu Search</h1>
+      <p class="dash-page-sub">Search by Program ID or menu string and see every user, group, and profile with their effective permission for it.</p>
+
+      <div class="dash-toolbar">
+        <div class="field" style="max-width:220px;">
+          <label for="searchMode">Search by</label>
+          <select id="searchMode">
+            <option value="menu_text">Menu String (partial)</option>
+            <option value="program_id">Program ID (exact)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="programInput">Value</label>
+          <input type="text" id="programInput" list="programList" placeholder="e.g. Shipping Entry or VMSHPENT" autocomplete="off">
+          <datalist id="programList"></datalist>
+        </div>
+        <div class="field" style="max-width:160px;">
+          <label for="accessFilter2">Access</label>
+          <select id="accessFilter2">
+            <option value="">All</option>
+            <option value="Y">Full Access</option>
+            <option value="R">Read Only</option>
+            <option value="N">No Access</option>
+          </select>
+        </div>
+        <button onclick="loadProgramSearch()">Search</button>
+      </div>
+
+      <div id="searchChips" class="chip-row"></div>
+      <div id="programStatus" class="status-msg"></div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Type</th><th>ID</th><th>Menu String</th><th>Program ID</th><th>Permission</th></tr></thead>
+          <tbody id="searchTableBody"><tr><td colspan="5" class="empty-state">Search above to see results.</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+// ===========================================================================
+// Navigation
+// ===========================================================================
+function showView(name) {
+  document.querySelectorAll(".dash-view").forEach(v => v.classList.remove("active"));
+  document.getElementById("view-" + name).classList.add("active");
+  document.querySelectorAll(".dash-nav-item").forEach(n => n.classList.remove("active"));
+  const navItem = document.querySelector(`.dash-nav-item[data-view="${name}"]`);
+  if (navItem) navItem.classList.add("active");
+}
+
+document.querySelectorAll(".dash-nav-item").forEach(item => {
+  item.addEventListener("click", () => {
+    const view = item.dataset.view;
+    showView(view);
+    if (view === "overview") loadOverview();
+    if (view === "users") loadUsersTable();
+    if (view === "groups") loadGroupsTable();
+    if (view === "profiles") loadProfilesTable();
+    if (view === "search") loadProgramAutocomplete();
+  });
+});
+
+document.querySelectorAll(".dash-back").forEach(b => {
+  b.addEventListener("click", () => showView(b.dataset.backTo));
+});
+
+function badge(permission, desc) {
+  return `<span class="badge badge-${permission}">${desc || permission}</span>`;
+}
+function flagDot(on) { return `<span class="flag-dot ${on ? 'on' : ''}"></span>`; }
+
+// ===========================================================================
+// OVERVIEW
+// ===========================================================================
+async function loadOverview() {
+  try {
+    const res = await fetch("/api/overview");
+    const data = await res.json();
+    const c = data.counts;
+
+    const tiles = [
+      ["Total Users", c.TotalUsers],
+      ["VISUAL Users", c.VisualUsers],
+      ["Admins", c.AdminUsers],
+      ["Groups", c.TotalGroups],
+      ["Profiles", c.TotalProfiles],
+      ["Programs", c.TotalPrograms],
+      ["Pending PW Resets", c.PendingPasswordResets],
+      ["Users w/ Failed Logins", c.UsersWithFailedLogins],
+    ];
+    document.getElementById("kpiGrid").innerHTML = tiles.map(([label, val]) => `
+      <div class="kpi-tile">
+        <div class="kpi-label">${label}</div>
+        <div class="gl-kpi-value">${val ?? 0}</div>
+      </div>
+    `).join("");
+
+    const noGroupEl = document.getElementById("noGroupList");
+    noGroupEl.innerHTML = data.usersWithNoGroupOrProfile.length
+      ? data.usersWithNoGroupOrProfile.slice(0, 12).map(u => `<div class="member-row"><span>${u.UserName}</span></div>`).join("") +
+        (data.usersWithNoGroupOrProfile.length > 12 ? `<div class="cell" style="padding:8px 10px;">+ ${data.usersWithNoGroupOrProfile.length - 12} more</div>` : "")
+      : `<div class="empty-state">None — every user has a group or profile.</div>`;
+
+    const adminEl = document.getElementById("adminList");
+    adminEl.innerHTML = data.adminUsers.length
+      ? data.adminUsers.map(u => `<div class="member-row"><span>${u.UserName}</span><span class="cell">${u.IS_VISUAL_USER === 'Y' ? 'VISUAL' : ''}</span></div>`).join("")
+      : `<div class="empty-state">No admin accounts found.</div>`;
+
+    const failedBody = document.getElementById("failedLoginsBody");
+    failedBody.innerHTML = data.failedLogins.length
+      ? data.failedLogins.map(f => `<tr><td>${f.UserName}</td><td>${f.FAILED_COUNT}</td><td>${f.LAST_FAILED_DATE || ""}</td></tr>`).join("")
+      : `<tr><td colspan="3" class="empty-state">No accounts with failed login attempts.</td></tr>`;
+  } catch (e) {
+    console.error("Overview load failed", e);
+  }
+}
+
+// ===========================================================================
+// USERS LIST
+// ===========================================================================
+let allUsersDetailed = [];
+
+async function loadUsersTable() {
+  try {
+    const res = await fetch("/api/users?detailed=1");
+    allUsersDetailed = await res.json();
+    renderUsersTable(allUsersDetailed);
+  } catch (e) {
+    console.error("Users load failed", e);
+  }
+}
+
+function renderUsersTable(rows) {
+  const body = document.getElementById("usersTableBody");
+  body.innerHTML = rows.length ? rows.map(u => `
+    <tr class="row-link" onclick="openUserDetail('${u.UserName}')">
+      <td><strong>${u.UserName}</strong></td>
+      <td>${flagDot(u.IS_ADMIN === 'Y')}</td>
+      <td>${flagDot(u.IS_VISUAL_USER === 'Y')}</td>
+      <td>${flagDot(u.IS_PLANNER === 'Y')}</td>
+      <td>${flagDot(u.IS_BUYER === 'Y')}</td>
+      <td>${flagDot(u.RESET_PW_NEXT_LOGIN === 'Y')}</td>
+    </tr>
+  `).join("") : `<tr><td colspan="6" class="empty-state">No users found.</td></tr>`;
+}
+
+function filterUsersTable() {
+  const term = document.getElementById("userSearchBox").value.toLowerCase();
+  const flag = document.getElementById("userFlagFilter").value;
+  let rows = allUsersDetailed.filter(u => !term || u.UserName.toLowerCase().includes(term));
+  if (flag === "FAILED_COUNT") {
+    rows = rows.filter(u => u.FAILED_COUNT > 0);
+  } else if (flag) {
+    rows = rows.filter(u => u[flag] === 'Y');
+  }
+  renderUsersTable(rows);
+}
+document.getElementById("userSearchBox").addEventListener("input", filterUsersTable);
+document.getElementById("userFlagFilter").addEventListener("change", filterUsersTable);
+
+// ===========================================================================
+// USER DETAIL
+// ===========================================================================
+let currentUserPrograms = [];
+
+async function openUserDetail(userId) {
+  showView("userDetail");
+  document.getElementById("userDetailTitle").textContent = userId;
+  document.getElementById("userDetailChips").innerHTML = "";
+  document.getElementById("userGroupsBody").innerHTML = `<tr><td colspan="3" class="empty-state">Loading…</td></tr>`;
+  document.getElementById("userProfilesBody").innerHTML = `<tr><td colspan="2" class="empty-state">Loading…</td></tr>`;
+  document.getElementById("userProgramsBody").innerHTML = `<tr><td colspan="4" class="empty-state">Loading…</td></tr>`;
+
+  try {
+    const [groupsRes, profilesRes, programsRes] = await Promise.all([
+      fetch(`/api/user/${encodeURIComponent(userId)}/groups`),
+      fetch(`/api/user/${encodeURIComponent(userId)}/profiles`),
+      fetch(`/api/user/${encodeURIComponent(userId)}/programs`)
+    ]);
+    const groups = await groupsRes.json();
+    const profiles = await profilesRes.json();
+    const programs = await programsRes.json();
+    currentUserPrograms = programs;
+
+    document.getElementById("userGroupsBody").innerHTML = groups.length
+      ? groups.map(g => `<tr><td>${g.GroupID}</td><td>${g.GroupDesc || ""}</td><td>${g.IS_LEADER === 'Y' ? 'Yes' : ''}</td></tr>`).join("")
+      : `<tr><td colspan="3" class="empty-state">No group membership.</td></tr>`;
+
+    document.getElementById("userProfilesBody").innerHTML = profiles.length
+      ? profiles.map(p => `<tr><td>${p.PROFILE_ID}</td><td>${p.DESCRIPTION || ""}</td></tr>`).join("")
+      : `<tr><td colspan="2" class="empty-state">No profile assigned.</td></tr>`;
+
+    const yCount = programs.filter(p => p.Permission === 'Y').length;
+    const rCount = programs.filter(p => p.Permission === 'R').length;
+    const nCount = programs.filter(p => p.Permission === 'N').length;
+    document.getElementById("userDetailChips").innerHTML = `
+      <span class="chip"><span class="dot dot-y"></span> ${yCount} Full Access</span>
+      <span class="chip"><span class="dot dot-r"></span> ${rCount} Read Only</span>
+      <span class="chip"><span class="dot dot-n"></span> ${nCount} No Access</span>
+    `;
+
+    renderUserProgramsTable(programs);
+  } catch (e) {
+    console.error("User detail load failed", e);
+  }
+}
+
+function renderUserProgramsTable(rows) {
+  const body = document.getElementById("userProgramsBody");
+  body.innerHTML = rows.length ? rows.map(p => `
+    <tr>
+      <td>${p.MenuString || ""}</td>
+      <td>${p.PROGRAM_ID}</td>
+      <td>${badge(p.Permission, p.PermissionDesc)}</td>
+      <td class="cell">${p.Source}</td>
+    </tr>
+  `).join("") : `<tr><td colspan="4" class="empty-state">No programs found.</td></tr>`;
+}
+
+function filterUserPrograms() {
+  const term = document.getElementById("userProgramFilter").value.toLowerCase();
+  const access = document.getElementById("userAccessFilter").value;
+  const filtered = currentUserPrograms.filter(p => {
+    const matchesTerm = !term || (p.MenuString && p.MenuString.toLowerCase().includes(term)) || (p.PROGRAM_ID && p.PROGRAM_ID.toLowerCase().includes(term));
+    const matchesAccess = !access || p.Permission === access;
+    return matchesTerm && matchesAccess;
+  });
+  renderUserProgramsTable(filtered);
+}
+document.getElementById("userProgramFilter").addEventListener("input", filterUserPrograms);
+document.getElementById("userAccessFilter").addEventListener("change", filterUserPrograms);
+
+// ===========================================================================
+// GROUPS
+// ===========================================================================
+async function loadGroupsTable() {
+  try {
+    const res = await fetch("/api/groups");
+    const rows = await res.json();
+    const body = document.getElementById("groupsTableBody");
+    body.innerHTML = rows.length ? rows.map(g => `
+      <tr class="row-link" onclick="openGroupDetail('${g.GroupID}')">
+        <td><strong>${g.GroupID}</strong></td>
+        <td>${g.DESCRIPTION || ""}</td>
+        <td class="cell">${g.SITE_ID || ""}</td>
+        <td class="cell"><strong>${g.MemberCount}</strong></td>
+        <td class="cell"><strong>${g.DirectProgramRules}</strong></td>
+      </tr>
+    `).join("") : `<tr><td colspan="5" class="empty-state">No groups found.</td></tr>`;
+  } catch (e) {
+    console.error("Groups load failed", e);
+  }
+}
+
+async function openGroupDetail(groupId) {
+  showView("groupDetail");
+  document.getElementById("groupDetailTitle").textContent = groupId;
+  document.getElementById("groupMembersList").innerHTML = `<div class="empty-state">Loading…</div>`;
+  document.getElementById("groupProgramsBody").innerHTML = `<tr><td colspan="3" class="empty-state">Loading…</td></tr>`;
+
+  try {
+    const [membersRes, programsRes] = await Promise.all([
+      fetch(`/api/group/${encodeURIComponent(groupId)}/members`),
+      fetch(`/api/group/${encodeURIComponent(groupId)}/programs`)
+    ]);
+    const members = await membersRes.json();
+    const programs = await programsRes.json();
+
+    document.getElementById("groupMembersList").innerHTML = members.length
+      ? members.map(m => `
+        <div class="member-row" onclick="openUserDetail('${m.UserName}')">
+          <span>${m.UserName}${m.IS_LEADER === 'Y' ? ' ★' : ''}</span>
+          <span class="member-flags">${flagDot(m.IS_ADMIN === 'Y')}</span>
+        </div>`).join("")
+      : `<div class="empty-state">No members in this group.</div>`;
+
+    document.getElementById("groupProgramsBody").innerHTML = programs.length
+      ? programs.map(p => `<tr><td>${p.MenuString || ""}</td><td>${p.PROGRAM_ID}</td><td>${badge(p.Permission, p.PermissionDesc)}</td></tr>`).join("")
+      : `<tr><td colspan="3" class="empty-state">No direct program rules — members fall back to profile/default access.</td></tr>`;
+  } catch (e) {
+    console.error("Group detail load failed", e);
+  }
+}
+
+// ===========================================================================
+// PROFILES
+// ===========================================================================
+async function loadProfilesTable() {
+  try {
+    const res = await fetch("/api/profiles");
+    const rows = await res.json();
+    const body = document.getElementById("profilesTableBody");
+    body.innerHTML = rows.length ? rows.map(p => `
+      <tr class="row-link" onclick="openProfileDetail('${p.ProfileID}')">
+        <td><strong>${p.ProfileID}</strong></td>
+        <td>${p.DESCRIPTION || ""}</td>
+        <td class="cell"><strong>${p.AssignedUserCount}</strong></td>
+        <td class="cell"><strong>${p.DirectProgramRules}</strong></td>
+      </tr>
+    `).join("") : `<tr><td colspan="4" class="empty-state">No profiles found.</td></tr>`;
+  } catch (e) {
+    console.error("Profiles load failed", e);
+  }
+}
+
+async function openProfileDetail(profileId) {
+  showView("profileDetail");
+  document.getElementById("profileDetailTitle").textContent = profileId;
+  document.getElementById("profileMembersList").innerHTML = `<div class="empty-state">Loading…</div>`;
+  document.getElementById("profileProgramsBody").innerHTML = `<tr><td colspan="3" class="empty-state">Loading…</td></tr>`;
+
+  try {
+    const [membersRes, programsRes] = await Promise.all([
+      fetch(`/api/profile/${encodeURIComponent(profileId)}/members`),
+      fetch(`/api/profile/${encodeURIComponent(profileId)}/programs`)
+    ]);
+    const members = await membersRes.json();
+    const programs = await programsRes.json();
+
+    document.getElementById("profileMembersList").innerHTML = members.length
+      ? members.map(m => `
+        <div class="member-row" onclick="openUserDetail('${m.UserName}')">
+          <span>${m.UserName}</span>
+          <span class="member-flags">${flagDot(m.IS_ADMIN === 'Y')}</span>
+        </div>`).join("")
+      : `<div class="empty-state">No users assigned this profile.</div>`;
+
+    document.getElementById("profileProgramsBody").innerHTML = programs.length
+      ? programs.map(p => `<tr><td>${p.MenuString || ""}</td><td>${p.PROGRAM_ID}</td><td>${badge(p.Permission, p.PermissionDesc)}</td></tr>`).join("")
+      : `<tr><td colspan="3" class="empty-state">No direct program rules on this profile.</td></tr>`;
+  } catch (e) {
+    console.error("Profile detail load failed", e);
+  }
+}
+
+// ===========================================================================
+// SEARCH
+// ===========================================================================
+async function loadProgramAutocomplete() {
+  if (document.getElementById("programList").children.length) return;
+  try {
+    const res = await fetch("/api/programs");
+    const programs = await res.json();
+    document.getElementById("programList").innerHTML = programs.map(p =>
+      `<option value="${p.MENU_TEXT}">${p.PROGRAM_ID} — ${p.MENU_TEXT}</option>`
+    ).join("");
+  } catch (e) {
+    console.error("Program autocomplete load failed", e);
+  }
+}
+
+async function loadProgramSearch() {
+  const mode = document.getElementById("searchMode").value;
+  const value = document.getElementById("programInput").value.trim();
+  const access = document.getElementById("accessFilter2").value;
+  const statusEl = document.getElementById("programStatus");
+  const chipsEl = document.getElementById("searchChips");
+
+  if (!value) {
+    statusEl.textContent = "Enter a program ID or menu string.";
+    statusEl.className = "status-msg error-msg";
+    return;
+  }
+  statusEl.textContent = "Loading...";
+  statusEl.className = "status-msg";
+  chipsEl.innerHTML = "";
+
+  const params = new URLSearchParams();
+  params.set(mode, value);
+  if (access) params.set("access", access);
+
+  try {
+    const res = await fetch(`/api/search?${params.toString()}`);
+    if (!res.ok) { const err = await res.json(); throw new Error(err.error || "Search failed"); }
+    const rows = await res.json();
+
+    const yCount = rows.filter(r => r.Permission === 'Y').length;
+    const rCount = rows.filter(r => r.Permission === 'R').length;
+    const nCount = rows.filter(r => r.Permission === 'N').length;
+    chipsEl.innerHTML = `
+      <span class="chip"><span class="dot dot-y"></span> ${yCount} Full Access</span>
+      <span class="chip"><span class="dot dot-r"></span> ${rCount} Read Only</span>
+      <span class="chip"><span class="dot dot-n"></span> ${nCount} No Access</span>
+    `;
+
+    const body = document.getElementById("searchTableBody");
+    body.innerHTML = rows.length ? rows.map(r => `
+      <tr class="${r.RecordType === 'USER' ? 'row-link' : ''}" ${r.RecordType === 'USER' ? `onclick="openUserDetail('${r.ID}')"` : ''}>
+        <td><span class="record-tag">${r.RecordType}</span></td>
+        <td>${r.ID}</td>
+        <td>${r.MenuString || ""}</td>
+        <td>${r.PROGRAM_ID}</td>
+        <td>${badge(r.Permission, r.PermissionDesc)}</td>
+      </tr>
+    `).join("") : `<tr><td colspan="5" class="empty-state">No results.</td></tr>`;
+
+    statusEl.textContent = `Found ${rows.length} record(s).`;
+  } catch (e) {
+    statusEl.textContent = "Error: " + e.message;
+    statusEl.className = "status-msg error-msg";
+    console.error(e);
+  }
+}
+document.getElementById("programInput").addEventListener("keydown", e => { if (e.key === "Enter") loadProgramSearch(); });
+
+// ===========================================================================
+// Init
+// ===========================================================================
+loadOverview();
+</script>
+
+</body>
+</html>

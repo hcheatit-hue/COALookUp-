@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GL Account Lookup — HC Heat Exchangers</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --base:    #0C0C0F;
+    --surface: #1C1917;
+    --card:    #242320;
+    --border:  #2E2B28;
+    --gold:    #BA7517;
+    --goldhov: #D4891C;
+    --highlight:#FAC775;
+    --light:   #FAEEDA;
+    --muted:   #7A6F63;
+    --red:     #C0392B;
+    --green:   #27AE60;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--base);
+    color: var(--light);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    padding: 24px;
+  }
+
+  /* HEADER */
+  .header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+  .logo {
+    width: 42px; height: 42px;
+    background: var(--gold);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 18px; font-weight: 500;
+    color: var(--base);
+  }
+  .header-text h1 {
+    font-size: 18px; font-weight: 600; color: var(--light);
+    letter-spacing: -0.3px;
+  }
+  .header-text p { font-size: 12px; color: var(--muted); }
+
+  /* SEARCH CARD */
+  .search-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+  .search-card h2 {
+    font-size: 12px; font-weight: 600;
+    color: var(--gold);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 16px;
+  }
+
+  .search-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .search-input-wrap {
+    position: relative;
+  }
+  .search-input-wrap svg {
+    position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+    color: var(--muted);
+  }
+  input[type="text"] {
+    width: 100%;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--light);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    padding: 12px 14px 12px 42px;
+    outline: none;
+    transition: border-color .2s;
+  }
+  input[type="text"]:focus { border-color: var(--gold); }
+  input[type="text"]::placeholder { color: var(--muted); }
+
+  .date-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 12px;
+  }
+  .field label {
+    display: block;
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  select, input[type="number"] {
+    width: 100%;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--light);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    padding: 10px 12px;
+    outline: none;
+    transition: border-color .2s;
+    -webkit-appearance: none;
+  }
+  select:focus, input[type="number"]:focus { border-color: var(--gold); }
+
+  .btn-row { display: flex; gap: 10px; margin-top: 16px; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 11px 22px;
+    border-radius: 10px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px; font-weight: 600;
+    cursor: pointer; border: none;
+    transition: all .2s;
+  }
+  .btn-primary {
+    background: var(--gold); color: var(--base);
+  }
+  .btn-primary:hover { background: var(--goldhov); transform: translateY(-1px); }
+  .btn-export {
+    background: var(--card); color: var(--highlight);
+    border: 1px solid var(--border);
+  }
+  .btn-export:hover { border-color: var(--gold); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+
+  /* KPI STRIP */
+  .kpi-strip {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .kpi {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px 18px;
+  }
+  .kpi-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+  .kpi-value { font-family: 'IBM Plex Mono', monospace; font-size: 16px; font-weight: 500; color: var(--highlight); }
+  .kpi-value.neg { color: var(--red); }
+  .kpi-value.pos { color: var(--green); }
+
+  /* TABLE */
+  .table-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    overflow: hidden;
+  }
+  .table-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .table-header span { font-size: 12px; color: var(--muted); }
+  .badge {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 3px 10px;
+    font-size: 11px; color: var(--highlight);
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    background: var(--card);
+    padding: 10px 14px;
+    font-size: 11px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: .5px;
+    color: var(--gold);
+    text-align: left;
+    white-space: nowrap;
+  }
+  thead th.num { text-align: right; }
+  tbody tr { border-bottom: 1px solid var(--border); transition: background .15s; }
+  tbody tr:hover { background: var(--card); }
+  tbody td {
+    padding: 10px 14px;
+    font-size: 13px; color: var(--light);
+    white-space: nowrap;
+  }
+  tbody td.mono { font-family: 'IBM Plex Mono', monospace; font-size: 12px; }
+  tbody td.num { text-align: right; font-family: 'IBM Plex Mono', monospace; font-size: 12px; }
+  tbody td.neg { color: var(--red); }
+  tbody td.pos { color: var(--green); }
+  tbody td.acct-id { color: var(--highlight); font-weight: 600; }
+  tfoot td {
+    padding: 10px 14px;
+    background: var(--base);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px; font-weight: 600;
+    color: var(--highlight);
+    text-align: right;
+    border-top: 2px solid var(--gold);
+  }
+  tfoot td:first-child { text-align: left; color: var(--gold); text-transform: uppercase; font-size: 11px; letter-spacing: 1px; }
+  tfoot td.neg { color: var(--red); }
+
+  /* STATES */
+  .state {
+    padding: 60px 20px;
+    text-align: center;
+    color: var(--muted);
+  }
+  .state svg { margin-bottom: 12px; opacity: .4; }
+  .state p { font-size: 14px; }
+  .state p.hint { font-size: 12px; margin-top: 6px; }
+
+  .spinner {
+    width: 28px; height: 28px;
+    border: 3px solid var(--border);
+    border-top-color: var(--gold);
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+    margin: 0 auto 12px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .error-msg {
+    background: rgba(192,57,43,.12);
+    border: 1px solid rgba(192,57,43,.3);
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 13px;
+    color: #E57373;
+    margin-top: 12px;
+    display: none;
+  }
+
+  @media (max-width: 768px) {
+    .date-grid { grid-template-columns: 1fr 1fr; }
+    .kpi-strip { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">GL</div>
+  <div class="header-text">
+    <h1>General Ledger Lookup</h1>
+    <p>HC Heat Exchangers · Infor Visual · SSHCHEAT</p>
+  </div>
+  <div style="flex: 1;"></div>
+  <button onclick="window.location.href='/'" style="
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 16px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    color: var(--light);
+    transition: all 0.2s;
+    font-family: 'DM Sans', sans-serif;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  ">
+    ← Back to Orders
+  </button>
+</div>
+
+<!-- SEARCH CARD -->
+<div class="search-card">
+  <h2>Search</h2>
+  <div class="search-row">
+    <div class="search-input-wrap">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input type="text" id="searchQ" placeholder="Account ID or Description (e.g. 4254 or Loans)" />
+    </div>
+  </div>
+
+  <div class="date-grid">
+    <div class="field">
+      <label>Start Fiscal Year</label>
+      <input type="number" id="startYear" value="2025" min="2000" max="2099" />
+    </div>
+    <div class="field">
+      <label>Start Period (1–12)</label>
+      <select id="startPeriod">
+        <option value="1">Period 1 (Mar)</option>
+        <option value="2">Period 2 (Apr)</option>
+        <option value="3">Period 3 (May)</option>
+        <option value="4">Period 4 (Jun)</option>
+        <option value="5">Period 5 (Jul)</option>
+        <option value="6">Period 6 (Aug)</option>
+        <option value="7">Period 7 (Sep)</option>
+        <option value="8">Period 8 (Oct)</option>
+        <option value="9">Period 9 (Nov)</option>
+        <option value="10">Period 10 (Dec)</option>
+        <option value="11">Period 11 (Jan)</option>
+        <option value="12">Period 12 (Feb)</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>End Fiscal Year</label>
+      <input type="number" id="endYear" value="2026" min="2000" max="2099" />
+    </div>
+    <div class="field">
+      <label>End Period (1–12)</label>
+      <select id="endPeriod">
+        <option value="1">Period 1 (Mar)</option>
+        <option value="2">Period 2 (Apr)</option>
+        <option value="3">Period 3 (May)</option>
+        <option value="4">Period 4 (Jun)</option>
+        <option value="5">Period 5 (Jul)</option>
+        <option value="6">Period 6 (Aug)</option>
+        <option value="7">Period 7 (Sep)</option>
+        <option value="8">Period 8 (Oct)</option>
+        <option value="9">Period 9 (Nov)</option>
+        <option value="10">Period 10 (Dec)</option>
+        <option value="11">Period 11 (Jan)</option>
+        <option value="12" selected>Period 12 (Feb)</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn btn-primary" onclick="runSearch()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      Search
+    </button>
+    <button class="btn btn-export" id="exportBtn" onclick="exportExcel()" disabled>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Export to Excel
+    </button>
+  </div>
+  <div class="error-msg" id="errorMsg"></div>
+</div>
+
+<!-- KPI STRIP -->
+<div class="kpi-strip" id="kpiStrip" style="display:none">
+  <div class="kpi">
+    <div class="kpi-label">Periods</div>
+    <div class="kpi-value" id="kpiPeriods">—</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Latest Balance</div>
+    <div class="kpi-value" id="kpiBalance">—</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Total Debit Movement</div>
+    <div class="kpi-value" id="kpiDebit">—</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Total Credit Movement</div>
+    <div class="kpi-value" id="kpiCredit">—</div>
+  </div>
+</div>
+
+<!-- TABLE CARD -->
+<div class="table-card" id="tableCard">
+  <div class="state" id="emptyState">
+    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+    <p>Enter an Account ID or Description to begin</p>
+    <p class="hint">e.g. <span style="color:var(--highlight);font-family:'IBM Plex Mono',monospace">4254</span> or <span style="color:var(--highlight);font-family:'IBM Plex Mono',monospace">Long Term Loans</span></p>
+  </div>
+  <div class="state" id="loadingState" style="display:none">
+    <div class="spinner"></div>
+    <p>Querying database…</p>
+  </div>
+  <div id="resultsWrap" style="display:none">
+    <div class="table-header">
+      <span id="tableTitle">Results</span>
+      <span class="badge" id="rowCount">0 rows</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Account ID</th>
+            <th>Description</th>
+            <th>Period</th>
+            <th class="num">Balance</th>
+            <th class="num">Budget</th>
+            <th class="num">Cum. Budget</th>
+            <th class="num">Variance</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+        <tfoot id="tableFoot"></tfoot>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+  let lastData = [];
+
+  const fmt = v => {
+    const n = parseFloat(v);
+    if (isNaN(n) || v === null || v === undefined) return 'R0.00';
+    const abs = Math.abs(n).toLocaleString('en-ZA', {minimumFractionDigits:2, maximumFractionDigits:2});
+    return n < 0 ? `(R${abs})` : `R${abs}`;
+  };
+
+  const validateParams = (p) => {
+    const errors = [];
+    
+    if (!p.q || p.q.trim().length < 2) {
+      errors.push('Search query must be at least 2 characters');
+    }
+    
+    const startYear = parseInt(p.start_year);
+    const endYear = parseInt(p.end_year);
+    const startPeriod = parseInt(p.start_period);
+    const endPeriod = parseInt(p.end_period);
+    
+    if (isNaN(startYear) || startYear < 2000 || startYear > 2099) {
+      errors.push('Start year must be between 2000-2099');
+    }
+    
+    if (isNaN(endYear) || endYear < 2000 || endYear > 2099) {
+      errors.push('End year must be between 2000-2099');
+    }
+    
+    if (isNaN(startPeriod) || startPeriod < 1 || startPeriod > 12) {
+      errors.push('Start period must be between 1-12');
+    }
+    
+    if (isNaN(endPeriod) || endPeriod < 1 || endPeriod > 12) {
+      errors.push('End period must be between 1-12');
+    }
+    
+    if ((startYear > endYear) || (startYear === endYear && startPeriod > endPeriod)) {
+      errors.push('Start date must be before or equal to end date');
+    }
+    
+    return errors;
+  };
+
+  const params = () => ({
+    q:            document.getElementById('searchQ').value.trim(),
+    start_year:   document.getElementById('startYear').value,
+    start_period: document.getElementById('startPeriod').value,
+    end_year:     document.getElementById('endYear').value,
+    end_period:   document.getElementById('endPeriod').value,
+  });
+
+  document.getElementById('searchQ').addEventListener('keydown', e => {
+    if (e.key === 'Enter') runSearch();
+  });
+
+  async function runSearch() {
+    const p = params();
+    
+    // Client-side validation
+    const validationErrors = validateParams(p);
+    if (validationErrors.length > 0) {
+      showError(validationErrors.join('. '));
+      return;
+    }
+    
+    hideError();
+    showState('loading');
+
+    const qs = new URLSearchParams(p).toString();
+    try {
+      const res = await fetch('/api/gl/search?' + qs);
+      
+      if (!res.ok) {
+        const json = await res.json();
+        showError(json.error || `Server error: ${res.status}`);
+        showState('empty');
+        return;
+      }
+      
+      const json = await res.json();
+      
+      if (!json.data || !Array.isArray(json.data)) {
+        showError('Invalid response from server');
+        showState('empty');
+        return;
+      }
+      
+      lastData = json.data;
+      renderTable(lastData);
+      renderKPIs(lastData);
+      document.getElementById('exportBtn').disabled = lastData.length === 0;
+    } catch(e) {
+      console.error('Search error:', e);
+      showError('Connection error: ' + e.message);
+      showState('empty');
+    }
+  }
+
+  function renderTable(data) {
+    if (!data || !data.length) { showState('empty'); return; }
+    showState('results');
+    document.getElementById('rowCount').textContent = data.length + ' rows';
+    
+    // Safely access first record properties
+    const firstRecord = data[0];
+    const accountId = firstRecord.Account_ID || 'Unknown';
+    const description = firstRecord.Description || 'Unknown';
+    document.getElementById('tableTitle').textContent = `${accountId} · ${description}`;
+
+    const tbody = document.getElementById('tableBody');
+    tbody.innerHTML = data.map(r => {
+      // Safe property access with fallbacks
+      const accountId = r.Account_ID || 'N/A';
+      const description = r.Description || 'N/A';
+      const period = r.Period || 'N/A';
+      const balance = r.Balance || 0;
+      const budget = r.Budget || 0;
+      const cumBudget = r.Cumulative_Budget || 0;
+      const variance = r.Variance || 0;
+      
+      const bal = parseFloat(balance);
+      const vari = parseFloat(variance);
+      
+      return `<tr>
+        <td class="acct-id mono">${accountId}</td>
+        <td>${description}</td>
+        <td class="mono">${period}</td>
+        <td class="num ${bal < 0 ? 'neg' : 'pos'}">${fmt(balance)}</td>
+        <td class="num">${fmt(budget)}</td>
+        <td class="num">${fmt(cumBudget)}</td>
+        <td class="num ${vari < 0 ? 'neg' : 'pos'}">${fmt(variance)}</td>
+      </tr>`;
+    }).join('');
+
+    // Totals with safe calculations
+    const totBal  = data.reduce((s,r) => s + (parseFloat(r.Balance) || 0), 0);
+    const totBudg = data.reduce((s,r) => s + (parseFloat(r.Budget) || 0), 0);
+    const totVar  = data.reduce((s,r) => s + (parseFloat(r.Variance) || 0), 0);
+    
+    document.getElementById('tableFoot').innerHTML = `<tr>
+      <td colspan="3">Totals</td>
+      <td class="${totBal<0?'neg':''}">${fmt(totBal)}</td>
+      <td>${fmt(totBudg)}</td>
+      <td></td>
+      <td class="${totVar<0?'neg':''}">${fmt(totVar)}</td>
+    </tr>`;
+  }
+
+  function renderKPIs(data) {
+    if (!data || !data.length) { 
+      document.getElementById('kpiStrip').style.display = 'none'; 
+      return; 
+    }
+    
+    document.getElementById('kpiStrip').style.display = 'grid';
+    
+    // Safe access to last record
+    const lastRecord = data[data.length - 1];
+    const latest = parseFloat(lastRecord.Balance) || 0;
+    
+    const totBal = data.reduce((s,r)=>s+(parseFloat(r.Balance)||0),0);
+    const neg = data.filter(r=>(parseFloat(r.Balance)||0) < 0).length;
+    const pos = data.length - neg;
+
+    document.getElementById('kpiPeriods').textContent  = data.length;
+    document.getElementById('kpiBalance').textContent  = fmt(latest);
+    document.getElementById('kpiBalance').className    = 'kpi-value ' + (latest<0?'neg':'pos');
+    document.getElementById('kpiDebit').textContent    = neg + ' periods negative';
+    document.getElementById('kpiCredit').textContent   = pos + ' periods positive';
+  }
+
+  function exportExcel() {
+    const p = params();
+    
+    // Client-side validation
+    const validationErrors = validateParams(p);
+    if (validationErrors.length > 0) {
+      showError('Cannot export: ' + validationErrors.join('. '));
+      return;
+    }
+    
+    if (!p.q || p.q.trim().length < 2) {
+      showError('Cannot export: Please enter a valid search query');
+      return;
+    }
+    
+    try {
+      const qs = new URLSearchParams(p).toString();
+      window.location = '/api/gl/export?' + qs;
+    } catch(e) {
+      console.error('Export error:', e);
+      showError('Export failed: ' + e.message);
+    }
+  }
+
+  function showState(s) {
+    document.getElementById('emptyState').style.display   = s==='empty'   ? 'block' : 'none';
+    document.getElementById('loadingState').style.display = s==='loading' ? 'block' : 'none';
+    document.getElementById('resultsWrap').style.display  = s==='results' ? 'block' : 'none';
+  }
+
+  function showError(msg) {
+    const el = document.getElementById('errorMsg');
+    el.textContent = msg; el.style.display = 'block';
+  }
+  function hideError() {
+    document.getElementById('errorMsg').style.display = 'none';
+  }
+</script>
+</body>
+</html>

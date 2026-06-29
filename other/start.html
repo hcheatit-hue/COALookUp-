@@ -1,0 +1,1340 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LaunchPad — App Manager</title>
+  <meta name="description" content="Manage and launch your local apps with one click.">
+  <style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=DM+Sans:wght@400;500;700&display=swap');
+
+:root {
+  --bg: #f4f1eb;
+  --surface: rgba(255,255,255,0.74);
+  --surface-solid: #ffffff;
+  --border: rgba(80,70,60,0.14);
+  --border-strong: rgba(80,70,60,0.28);
+  --card-border: rgba(255,255,255,0.45);
+
+  --text: #1f1f1f;
+  --muted: #6d6a63;
+
+  --accent: #9b5c2e;
+  --accent-hover: #7f4923;
+  --accent-fg: #ffffff;
+
+  --success: #2f7d4c;
+  --running: #2f7d4c;
+  --running-bg: rgba(47,125,76,0.12);
+
+  --warning: #c58a1c;
+  --yellow: #9a6b00;
+  --yellow-bg: #fff4cf;
+
+  --danger: #b84040;
+  --danger-bg: #fff0ed;
+
+  --radius: 24px;
+  --shadow: 0 10px 30px rgba(0,0,0,0.08);
+
+  --sans: 'DM Sans', sans-serif;
+  --mono: 'IBM Plex Mono', monospace;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--sans);
+  background:
+    radial-gradient(circle at top left, #fff7ec, #f4f1eb 42%);
+  min-height: 100vh;
+  color: var(--text);
+}
+
+/* ACCESSIBILITY */
+.skip-link {
+  position: absolute;
+  top: -999px;
+  left: 0;
+  background: var(--accent);
+  color: var(--accent-fg);
+  padding: 8px 16px;
+  font-weight: 700;
+  text-decoration: none;
+  border-radius: 0 0 var(--radius) 0;
+  z-index: 9999;
+}
+
+.skip-link:focus {
+  top: 0;
+}
+
+:focus-visible {
+  outline: 3px solid rgba(155,92,46,0.45);
+  outline-offset: 3px;
+}
+
+/* SHELL */
+.app-shell {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  min-height: 100vh;
+  gap: 24px;
+  padding: 24px;
+}
+
+.wrapper {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* SIDEBAR */
+.sidebar {
+  position: sticky;
+  top: 24px;
+  height: calc(100vh - 48px);
+  border-radius: 28px;
+  padding: 22px;
+  background: var(--surface);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.brand-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, var(--accent), #c18450);
+  color: white;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 10px 24px rgba(155,92,46,0.26);
+}
+
+.sidebar-brand strong {
+  display: block;
+  font-size: 1.1rem;
+}
+
+.sidebar-brand span {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.nav-item {
+  border: none;
+  background: transparent;
+  text-align: left;
+  padding: 13px 14px;
+  border-radius: 16px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.nav-item:hover,
+.nav-item.active {
+  background: var(--accent);
+  color: white;
+  transform: translateX(2px);
+}
+
+.sidebar-footer {
+  border-radius: 18px;
+  padding: 14px;
+  background: rgba(155,92,46,0.1);
+}
+
+.sidebar-footer span {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.sidebar-footer strong {
+  font-size: 1.1rem;
+}
+
+/* TOPBAR */
+.topbar {
+  position: sticky;
+  top: 18px;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 20px 28px;
+  border-radius: 28px;
+  background: rgba(255,255,255,0.68);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--shadow);
+  margin-bottom: 28px;
+}
+
+.brand-group {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.brand-group h1 {
+  font-size: 1.25rem;
+  line-height: 1.1;
+}
+
+.brand-group span {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.topbar-search {
+  flex: 1;
+  max-width: 520px;
+}
+
+.topbar-search input {
+  width: 100%;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.72);
+  border-radius: 18px;
+  padding: 13px 16px;
+  font-family: var(--sans);
+  font-size: 0.92rem;
+  outline: none;
+}
+
+.topbar-search input:focus {
+  border-color: rgba(155,92,46,0.45);
+  background: white;
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.status-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.status-live.online {
+  color: var(--success);
+}
+
+.status-live.offline {
+  color: var(--danger);
+}
+
+.pulse {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: currentColor;
+  animation: blink 1.6s infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  60% { opacity: 0.35; }
+}
+
+/* HERO */
+.hero-grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 18px;
+  margin-bottom: 24px;
+}
+
+.hero-card {
+  grid-column: span 4;
+  min-height: 120px;
+  border-radius: 28px;
+  padding: 20px;
+  background: var(--surface);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.hero-card.large {
+  background: linear-gradient(135deg, #9b5c2e, #b77544);
+  color: white;
+}
+
+.widget-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: inherit;
+  opacity: 0.76;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.hero-card h2,
+.hero-card h3 {
+  font-size: 2rem;
+  margin-top: 6px;
+}
+
+.hero-card p {
+  font-size: 0.82rem;
+  opacity: 0.8;
+}
+
+/* TOOLBAR */
+.toolbar-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 22px;
+}
+
+.section-title {
+  font-size: 1.2rem;
+}
+
+.section-subtitle {
+  font-size: 0.84rem;
+  color: var(--muted);
+  margin-top: 3px;
+}
+
+.filters-group {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.filter-chip {
+  border: none;
+  background: rgba(255,255,255,0.72);
+  border-radius: 999px;
+  padding: 12px 18px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow);
+  color: var(--muted);
+}
+
+.filter-chip:hover,
+.filter-chip.active {
+  background: var(--accent);
+  color: white;
+  transform: translateY(-1px);
+}
+
+/* BUTTONS */
+.btn-add,
+.btn-primary,
+.btn-secondary,
+.btn-danger-solid,
+.btn-launch,
+.btn-sm {
+  font-family: var(--sans);
+}
+
+.btn-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 18px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  border: none;
+  border-radius: 18px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-add:hover {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+}
+
+/* APP GRID + CARDS */
+.app-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-auto-rows: 1fr;
+  gap: 20px;
+}
+
+.app-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 28px;
+  padding: 22px;
+  background: var(--surface);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--shadow);
+  transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease,
+    border-color 0.25s ease;
+}
+
+.app-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.12);
+  border-color: rgba(155,92,46,0.2);
+}
+
+.app-card.featured {
+  grid-column: span 2;
+  min-height: 260px;
+}
+
+.app-card.is-running {
+  border-left: 4px solid var(--success);
+}
+
+.card-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.app-icon {
+  width: 58px;
+  height: 58px;
+  border-radius: 18px;
+  background:
+    linear-gradient(135deg, rgba(155,92,46,0.18), rgba(255,255,255,0.3));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.45rem;
+  flex-shrink: 0;
+}
+
+.app-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.app-name {
+  font-size: 1rem;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.app-badge,
+.running-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.66rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 5px 8px;
+  border-radius: 999px;
+  margin-top: 7px;
+}
+
+.badge-node {
+  background: #e6f4ea;
+  color: #1a5c2a;
+}
+
+.badge-python {
+  background: var(--yellow-bg);
+  color: var(--yellow);
+}
+
+.badge-other {
+  background: #eef0ff;
+  color: #343a75;
+}
+
+.running-badge {
+  background: var(--running-bg);
+  color: var(--running);
+}
+
+.running-badge::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--running);
+  animation: blink 1.5s infinite;
+}
+
+.card-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.meta-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--muted);
+  overflow: hidden;
+}
+
+.meta-row span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.meta-row svg {
+  flex-shrink: 0;
+  opacity: 0.5;
+}
+
+.card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.btn-launch {
+  flex: 1;
+  border: none;
+  border-radius: 18px;
+  padding: 13px 16px;
+  background: var(--accent);
+  color: white;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.22s ease;
+}
+
+.btn-launch:hover {
+  background: var(--accent-hover);
+  transform: translateY(-2px);
+}
+
+.btn-launch:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.btn-launch.running {
+  background: var(--running-bg);
+  color: var(--running);
+}
+
+.btn-sm {
+  width: 42px;
+  height: 42px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: rgba(255,255,255,0.64);
+  color: var(--muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-sm:hover {
+  background: white;
+  color: var(--text);
+}
+
+.btn-sm.danger:hover {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+/* EMPTY + OFFLINE */
+.empty-state {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 48px 20px;
+  color: var(--muted);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.empty-state p {
+  font-size: 0.9rem;
+  margin-top: 8px;
+}
+
+.offline-banner {
+  background: var(--danger-bg);
+  border: 1px solid rgba(184,64,64,0.25);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  font-size: 0.84rem;
+  color: var(--danger);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.offline-banner code {
+  font-family: var(--mono);
+  background: rgba(139,26,26,0.08);
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+}
+
+/* MODALS */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(26,25,22,0.55);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s;
+}
+
+.overlay.open {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.modal {
+  width: 100%;
+  max-width: 520px;
+  border-radius: 32px;
+  padding: 32px;
+  background: rgba(255,255,255,0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--card-border);
+  box-shadow: 0 24px 50px rgba(0,0,0,0.18);
+  transform: translateY(8px);
+  transition: transform 0.18s;
+}
+
+.overlay.open .modal {
+  transform: translateY(0);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.modal-header h2 {
+  font-size: 1.2rem;
+  font-weight: 800;
+}
+
+.btn-close {
+  width: 32px;
+  height: 32px;
+  background: rgba(255,255,255,0.6);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.field {
+  margin-bottom: 14px;
+}
+
+.field label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 800;
+  margin-bottom: 6px;
+}
+
+.field input,
+.field select {
+  width: 100%;
+  background: rgba(255,255,255,0.72);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 12px 13px;
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 0.88rem;
+  outline: none;
+}
+
+.field input:focus,
+.field select:focus {
+  border-color: rgba(155,92,46,0.45);
+  background: white;
+}
+
+.field-hint {
+  font-size: 0.72rem;
+  color: var(--muted);
+  margin-top: 5px;
+}
+
+.icon-picker {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.icon-opt {
+  width: 40px;
+  height: 40px;
+  border-radius: 15px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.64);
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+
+.icon-opt:hover,
+.icon-opt.selected {
+  border-color: var(--accent);
+  background: rgba(155,92,46,0.12);
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+
+.btn-primary,
+.btn-secondary,
+.btn-danger-solid {
+  flex: 1;
+  padding: 12px 16px;
+  border-radius: 16px;
+  font-size: 0.88rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: white;
+  border: none;
+}
+
+.btn-primary:hover {
+  background: var(--accent-hover);
+}
+
+.btn-secondary {
+  background: rgba(255,255,255,0.62);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.btn-danger-solid {
+  background: var(--danger);
+  color: white;
+  border: none;
+}
+
+.confirm-body {
+  text-align: center;
+}
+
+.confirm-icon {
+  font-size: 2rem;
+  margin-bottom: 10px;
+}
+
+.confirm-body h3 {
+  font-size: 1.05rem;
+  margin-bottom: 6px;
+}
+
+.confirm-body p {
+  font-size: 0.84rem;
+  color: var(--muted);
+}
+
+/* TOAST */
+.toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%) translateY(60px);
+  background: var(--text);
+  color: #fff;
+  border-radius: 18px;
+  padding: 12px 18px;
+  font-size: 0.84rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 12px 30px rgba(0,0,0,0.2);
+  z-index: 999;
+  transition: transform 0.25s cubic-bezier(0.34,1.56,0.64,1);
+  max-width: calc(100vw - 40px);
+}
+
+.toast.show {
+  transform: translateX(-50%) translateY(0);
+}
+
+/* RESPONSIVE */
+@media (max-width: 1100px) {
+  .hero-card,
+  .hero-card.large {
+    grid-column: span 12;
+  }
+
+  .app-card.featured {
+    grid-column: span 1;
+  }
+}
+
+@media (max-width: 1000px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    position: static;
+    height: auto;
+  }
+
+  .sidebar-nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 768px) {
+  .app-shell {
+    padding: 16px;
+  }
+
+  .topbar,
+  .toolbar-row,
+  .topbar-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .topbar-search {
+    max-width: none;
+  }
+
+  .app-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .modal-actions {
+    flex-direction: column;
+  }
+}
+</style>
+</head>
+
+
+
+  <a href="#main" class="skip-link">Skip to content</a>
+  <div role="status" aria-live="polite" aria-atomic="true" id="liveRegion"
+    style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);"></div>
+
+  <div class="app-shell">
+
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-icon">⚡</div>
+        <div>
+          <strong>HC</strong>
+          <span>Workspace</span>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <button class="nav-item active">Dashboard</button>
+        <button class="nav-item">Applications</button>
+        <button class="nav-item">Activity</button>
+        <button class="nav-item">Settings</button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <span>Server</span>
+        <strong>3111</strong>
+      </div>
+    </aside>
+
+    <div class="wrapper">
+
+
+      <header class="topbar">
+        <div class="brand-group">
+          <div class="brand-icon">⚡</div>
+
+          <div>
+            <h1>HC Workspace</h1>
+            <span>Operations Dashboard</span>
+          </div>
+        </div>
+
+        <div class="topbar-search">
+          <input type="text" id="searchInput" placeholder="Search apps..." oninput="renderApps()" />
+        </div>
+
+        <div class="topbar-actions">
+          <div class="status-live" id="serverStatus" role="status" aria-label="Server status">
+            <span class="pulse"></span>
+            <span id="serverLabel">Checking…</span>
+          </div>
+
+          <button class="btn-add" onclick="openModal()" aria-label="Register a new app">
+            Register App
+          </button>
+        </div>
+      </header>
+
+      <main id="main">
+
+        <div id="offlineBanner" class="offline-banner" role="alert" hidden>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5" />
+            <path d="M8 5v3.5M8 10.5v.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+          </svg>
+          Server offline — open Command Prompt and run: <code>python server.py</code>
+        </div>
+
+        <section class="hero-grid">
+
+          <div class="hero-card large">
+            <span class="widget-label">Registered Apps</span>
+            <h2 id="totalAppsStat">—</h2>
+            <p>Apps available in HC Workspace</p>
+          </div>
+
+          <div class="hero-card">
+            <span class="widget-label">Running Apps</span>
+            <h3 id="runningAppsStat">—</h3>
+            <p>Currently marked as active</p>
+          </div>
+
+          <div class="hero-card">
+            <span class="widget-label">Server</span>
+            <h3 id="serverStat">Checking</h3>
+            <p>Local app manager service</p>
+          </div>
+
+        </section>
+
+        <section class="toolbar-row">
+          <div>
+            <h2 class="section-title">Applications</h2>
+            <p class="section-subtitle" id="appCountLabel">— apps registered</p>
+          </div>
+
+          <div class="filters-group">
+            <button class="filter-chip active" onclick="setFilter('all', this)">All</button>
+            <button class="filter-chip" onclick="setFilter('running', this)">Running</button>
+            <button class="filter-chip" onclick="setFilter('node', this)">Node.js</button>
+            <button class="filter-chip" onclick="setFilter('python', this)">Python</button>
+            <button class="filter-chip" onclick="setFilter('other', this)">Other</button>
+          </div>
+        </section>
+
+        <div class="app-grid" id="appGrid" role="list" aria-label="Registered apps">
+          <div class="empty-state" role="listitem">
+            <div style="font-size:2rem" aria-hidden="true">⏳</div>
+            <p>Loading apps…</p>
+          </div>
+        </div>
+
+      </main>
+    </div>
+    <!-- Add / Edit Modal -->
+    <div class="overlay" id="overlay" role="dialog" aria-modal="true" aria-labelledby="modalTitle"
+      onclick="handleOverlayClick(event)">
+      <div class="modal">
+        <div class="modal-header">
+          <h2 id="modalTitle">Register App</h2>
+
+          <button class="btn-close" onclick="closeModal()" aria-label="Close dialog">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+              <path d="M1 1l10 10M11 1L1 11" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+            </svg>
+          </button>
+        </div>
+
+        <div class="field">
+          <label for="f-name">App Name</label>
+          <input type="text" id="f-name" placeholder="e.g. Reports Dashboard" autocomplete="off" />
+        </div>
+
+        <div class="field">
+          <label for="f-type">App Type</label>
+          <select id="f-type">
+            <option value="node">Node.js / npm</option>
+            <option value="python">Python</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="f-path">Folder Path</label>
+          <input type="text" id="f-path" placeholder="e.g. C:\Users\you\projects\my-app" autocomplete="off" />
+          <div class="field-hint">Full path to the folder containing your app</div>
+        </div>
+
+        <div class="field">
+          <label for="f-cmd">Start Command</label>
+          <input type="text" id="f-cmd" placeholder="e.g. npm run start or python app.py" autocomplete="off" />
+        </div>
+
+        <div class="field">
+          <label>Icon</label>
+          <div class="icon-picker" id="iconPicker" role="radiogroup" aria-label="Choose an icon"></div>
+        </div>
+
+        <div class="modal-actions">
+          <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+          <button class="btn-primary" onclick="saveApp()">Save App</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Confirm Delete Modal -->
+    <div class="overlay" id="confirmOverlay" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+      <div class="modal">
+        <div class="confirm-body">
+          <div class="confirm-icon" aria-hidden="true">🗑</div>
+          <h3 id="confirmTitle">Remove this app?</h3>
+          <p id="confirmMsg">This will remove the app from HC Workspace.</p>
+          <p style="margin-top:4px;font-size:0.75rem;">Your actual files will not be deleted.</p>
+        </div>
+
+        <div class="modal-actions">
+          <button class="btn-secondary" onclick="closeConfirm()">Keep it</button>
+          <button class="btn-danger-solid" onclick="confirmDelete()">Remove</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast" role="presentation" aria-hidden="true">
+      <span id="toastIcon" aria-hidden="true"></span>
+      <span id="toastMsg"></span>
+    </div>
+  </div>
+
+  <script>
+    const API = 'http://localhost:3111/api';
+    const ICONS = ['🚀', '⚡', '🔥', '💻', '🌐', '🛠', '📦', '🐍', '🤖', '🧩', '🎯', '🔧', '🌿', '📡', '🔑', '💡'];
+
+    let apps = [], editingId = null, deleteTargetId = null, selectedIcon = '🚀';
+    let currentFilter = 'all';
+
+    function setFilter(filter, button) {
+      currentFilter = filter;
+
+      document.querySelectorAll('.filter-chip').forEach(btn => {
+        btn.classList.remove('active');
+      });
+
+      button.classList.add('active');
+
+      renderApps();
+    }
+
+    async function checkServer() {
+      try {
+        const r = await fetch(`${API}/apps`, { signal: AbortSignal.timeout(2000) });
+        if (r.ok) {
+          document.getElementById('serverStatus').className = 'status-live online';
+          document.getElementById('serverLabel').textContent = 'System Online';
+          document.getElementById('serverStat').textContent = 'Online';
+          document.getElementById('offlineBanner').hidden = true;
+          return true;
+        }
+      } catch { }
+      document.getElementById('serverStatus').className = 'status-live offline';
+      document.getElementById('serverLabel').textContent = 'System Offline';
+      document.getElementById('serverStat').textContent = 'Offline';
+      document.getElementById('offlineBanner').hidden = false;
+      return false;
+    }
+
+    async function loadApps() {
+      try {
+        const r = await fetch(`${API}/apps`);
+        apps = await r.json();
+        renderApps();
+      } catch {
+        document.getElementById('appGrid').innerHTML = `
+        <div class="empty-state" role="listitem">
+          <div style="font-size:1.8rem" aria-hidden="true">🔴</div>
+          <p>Cannot reach the server.<br>Open Command Prompt and run: <strong>python server.py</strong></p>
+        </div>`;
+      }
+    }
+
+    function renderApps() {
+      const grid = document.getElementById('appGrid');
+      const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
+      const featured =
+        app.running || app.favorite;
+
+      const cardClass =
+        featured
+          ? 'app-card featured'
+          : 'app-card';
+
+      let filteredApps = apps.filter(app => {
+        const matchesSearch =
+          app.name.toLowerCase().includes(searchTerm) ||
+          app.type.toLowerCase().includes(searchTerm) ||
+          app.path.toLowerCase().includes(searchTerm) ||
+          app.cmd.toLowerCase().includes(searchTerm);
+
+        const matchesFilter =
+          currentFilter === 'all' ||
+          currentFilter === app.type ||
+          (currentFilter === 'running' && app.running);
+
+        return matchesSearch && matchesFilter;
+      });
+
+      const count = filteredApps.length;
+      const totalApps = apps.length;
+      const runningApps = apps.filter(app => app.running).length;
+
+      document.getElementById('totalAppsStat').textContent = totalApps;
+      document.getElementById('runningAppsStat').textContent = runningApps;
+      document.getElementById('appCountLabel').textContent =
+        count === 0 ? 'No apps registered' : `${count} app${count !== 1 ? 's' : ''} registered`;
+
+      if (!count) {
+        grid.innerHTML = `<div class="empty-state" role="listitem"><div style="font-size:2rem" aria-hidden="true">🚀</div><p>No apps yet — click <strong>Register New App</strong> to add your first one.</p></div>`;
+        return;
+      }
+
+      grid.innerHTML = filteredApps.map(app => {
+        const bc = app.type === 'node' ? 'badge-node' : app.type === 'python' ? 'badge-python' : 'badge-other';
+        const bl = app.type === 'node' ? 'Node.js' : app.type === 'python' ? 'Python' : 'Other';
+        return `
+        <article class="${cardClass} ${app.running ? 'is-running' : ''}" id="card-${app.id}" role="listitem" aria-label="${esc(app.name)}${app.running ? ', running' : ''}">
+          <div class="card-top">
+            <div class="app-icon" aria-hidden="true">${app.icon || '🚀'}</div>
+            <div class="app-info">
+              <div class="app-name">${esc(app.name)}</div>
+              <span class="app-badge ${bc}">${bl}</span>
+              ${app.running ? '<span class="running-badge">Running</span>' : ''}
+            </div>
+          </div>
+          <div class="card-meta">
+            <div class="meta-row" title="${esc(app.path)}">
+              <svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true"><path d="M1 2.5h3l1 1.5h5v6H1V2.5z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+              <span>${esc(app.path)}</span>
+            </div>
+            <div class="meta-row" title="${esc(app.cmd)}">
+              <svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true"><path d="M2 3.5l2.5 2L2 7.5M5.5 7.5h3.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span>${esc(app.cmd)}</span>
+            </div>
+          </div>
+          <div class="card-actions">
+            ${app.running
+            ? `<button class="btn-launch running" onclick="stopApp('${app.id}')" aria-label="Mark ${esc(app.name)} as stopped">⏹ Mark Stopped</button>`
+            : `<button class="btn-launch" onclick="launchApp('${app.id}')" aria-label="Launch ${esc(app.name)}">▶ Launch</button>`
+          }
+            <button class="btn-sm" onclick="openModal('${app.id}')" aria-label="Edit ${esc(app.name)}" title="Edit">
+              <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><path d="M9.5 1.5l2 2-7 7H2.5v-2l7-7z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+            </button>
+            <button class="btn-sm danger" onclick="askDelete('${app.id}')" aria-label="Remove ${esc(app.name)}" title="Remove">
+              <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><path d="M2 3.5h9M5 3.5V2h3v1.5M4 3.5l.5 7h4l.5-7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+        </article>`;
+      }).join('');
+    }
+
+    async function launchApp(id) {
+      const btn = document.querySelector(`#card-${id} .btn-launch`);
+      if (btn) { btn.disabled = true; btn.textContent = 'Launching…'; }
+      try {
+        const r = await fetch(`${API}/launch/${id}`, { method: 'POST' });
+        const data = await r.json();
+        if (data.ok) { showToast('▶️', `${data.message} — check the new cmd window`); await loadApps(); }
+        else { showToast('❌', data.error || 'Launch failed'); if (btn) { btn.disabled = false; btn.textContent = '▶ Launch'; } }
+      } catch {
+        showToast('❌', 'Cannot reach server — is server.py running?');
+        if (btn) { btn.disabled = false; btn.textContent = '▶ Launch'; }
+      }
+    }
+
+    async function stopApp(id) {
+      await fetch(`${API}/stop/${id}`, { method: 'POST' });
+      showToast('⏹', 'Marked as stopped — close the cmd window to fully stop');
+      await loadApps();
+    }
+
+    function buildIconPicker() {
+      document.getElementById('iconPicker').innerHTML = ICONS.map(ic => `
+      <button type="button" class="icon-opt ${ic === selectedIcon ? 'selected' : ''}"
+        onclick="selectIcon('${ic}')" aria-label="${ic}"
+        aria-pressed="${ic === selectedIcon}">${ic}</button>`).join('');
+    }
+
+    function selectIcon(ic) {
+      selectedIcon = ic;
+      document.querySelectorAll('.icon-opt').forEach(el => {
+        const a = el.textContent.trim() === ic;
+        el.classList.toggle('selected', a);
+        el.setAttribute('aria-pressed', a);
+      });
+    }
+
+    function openModal(id = null) {
+      editingId = id;
+      const app = id ? apps.find(a => a.id === id) : null;
+      document.getElementById('modalTitle').textContent = id ? 'Edit App' : 'Register App';
+      document.getElementById('f-name').value = app?.name || '';
+      document.getElementById('f-type').value = app?.type || 'node';
+      document.getElementById('f-path').value = app?.path || '';
+      document.getElementById('f-cmd').value = app?.cmd || '';
+      selectedIcon = app?.icon || '🚀';
+      buildIconPicker();
+      document.getElementById('overlay').classList.add('open');
+      setTimeout(() => document.getElementById('f-name').focus(), 50);
+    }
+
+    function closeModal() { document.getElementById('overlay').classList.remove('open'); editingId = null; }
+    function handleOverlayClick(e) { if (e.target === document.getElementById('overlay')) closeModal(); }
+
+    async function saveApp() {
+      const name = document.getElementById('f-name').value.trim();
+      const type = document.getElementById('f-type').value;
+      const path = document.getElementById('f-path').value.trim();
+      const cmd = document.getElementById('f-cmd').value.trim();
+      if (!name || !path || !cmd) { showToast('⚠️', 'Please fill in all fields'); return; }
+      const payload = { name, type, path, cmd, icon: selectedIcon };
+      if (editingId) {
+        await fetch(`${API}/apps/${editingId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        showToast('✏️', 'App updated');
+      } else {
+        await fetch(`${API}/apps`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        showToast('✅', `${name} registered`);
+      }
+      closeModal();
+      await loadApps();
+    }
+
+    function askDelete(id) {
+      deleteTargetId = id;
+      const app = apps.find(a => a.id === id);
+      document.getElementById('confirmMsg').textContent = `"${app.name}" will be removed from LaunchPad.`;
+      document.getElementById('confirmOverlay').classList.add('open');
+      setTimeout(() => document.getElementById('confirmOverlay').querySelector('.btn-secondary').focus(), 50);
+    }
+
+    function closeConfirm() { document.getElementById('confirmOverlay').classList.remove('open'); deleteTargetId = null; }
+
+    async function confirmDelete() {
+      await fetch(`${API}/apps/${deleteTargetId}`, { method: 'DELETE' });
+      showToast('🗑', 'App removed');
+      closeConfirm();
+      await loadApps();
+    }
+
+    let toastTimer;
+    function showToast(icon, msg) {
+      clearTimeout(toastTimer);
+      document.getElementById('toastIcon').textContent = icon;
+      document.getElementById('toastMsg').textContent = msg;
+      document.getElementById('liveRegion').textContent = msg;
+      document.getElementById('toast').classList.add('show');
+      toastTimer = setTimeout(() => {
+        document.getElementById('toast').classList.remove('show');
+        document.getElementById('liveRegion').textContent = '';
+      }, 4000);
+    }
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') { closeModal(); closeConfirm(); }
+    });
+
+    function esc(str) {
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    (async () => {
+      const online = await checkServer();
+      if (online) await loadApps();
+    })();
+
+    setInterval(async () => {
+      const online = await checkServer();
+      if (online) await loadApps();
+    }, 10000);
+  </script>
+  </body>
+
+</html>

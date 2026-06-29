@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>ASA Architects – Redesign Concept</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Barlow:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --cream: #F5F0E8;
+    --stone: #D6CDBF;
+    --charcoal: #1C1C1A;
+    --mid: #3A3A37;
+    --accent: #8B7355;
+    --accent-light: #C4A882;
+    --white: #FAFAF8;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'Barlow', sans-serif;
+    background: var(--charcoal);
+    color: var(--cream);
+    overflow-x: hidden;
+  }
+
+  /* ─── NAV ─── */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 28px 48px;
+    mix-blend-mode: normal;
+  }
+  .nav-logo {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 22px;
+    font-weight: 300;
+    letter-spacing: 0.12em;
+    color: var(--white);
+    text-decoration: none;
+  }
+  .nav-logo span { font-style: italic; color: var(--accent-light); }
+  .nav-links {
+    display: flex; gap: 40px; list-style: none;
+  }
+  .nav-links a {
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(245,240,232,0.7);
+    text-decoration: none;
+    transition: color 0.3s;
+  }
+  .nav-links a:hover { color: var(--accent-light); }
+
+  /* ─── HERO ─── */
+  .hero {
+    height: 100vh;
+    position: relative;
+    display: flex; flex-direction: column;
+    justify-content: flex-end;
+    padding: 0 48px 64px;
+    overflow: hidden;
+  }
+  .hero-bg {
+    position: absolute; inset: 0;
+    background:
+      linear-gradient(to bottom, rgba(28,28,26,0.2) 0%, rgba(28,28,26,0.65) 100%),
+      url('https://images.unsplash.com/photo-1487958449943-2429e8be8625?w=1800&q=80') center/cover no-repeat;
+    transform: scale(1.04);
+    animation: heroReveal 1.8s cubic-bezier(0.16,1,0.3,1) forwards;
+  }
+  @keyframes heroReveal {
+    from { transform: scale(1.12); opacity: 0; }
+    to   { transform: scale(1.04); opacity: 1; }
+  }
+
+  .hero-eyebrow {
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--accent-light);
+    margin-bottom: 20px;
+    opacity: 0;
+    animation: fadeUp 1s ease 0.6s forwards;
+  }
+  .hero-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(52px, 7vw, 96px);
+    font-weight: 300;
+    line-height: 1.0;
+    color: var(--white);
+    max-width: 680px;
+    opacity: 0;
+    animation: fadeUp 1s ease 0.85s forwards;
+  }
+  .hero-title em {
+    font-style: italic;
+    color: var(--accent-light);
+  }
+  .hero-sub {
+    margin-top: 28px;
+    font-size: 14px;
+    font-weight: 300;
+    color: rgba(245,240,232,0.65);
+    letter-spacing: 0.04em;
+    line-height: 1.7;
+    max-width: 420px;
+    opacity: 0;
+    animation: fadeUp 1s ease 1.1s forwards;
+  }
+  .hero-actions {
+    display: flex; align-items: center; gap: 32px;
+    margin-top: 40px;
+    opacity: 0;
+    animation: fadeUp 1s ease 1.3s forwards;
+  }
+  .btn-primary {
+    padding: 14px 36px;
+    background: var(--accent);
+    color: var(--white);
+    font-family: 'Barlow', sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    border: none; cursor: pointer;
+    text-decoration: none;
+    transition: background 0.3s, transform 0.2s;
+  }
+  .btn-primary:hover { background: var(--accent-light); transform: translateY(-1px); }
+  .btn-ghost {
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(245,240,232,0.7);
+    text-decoration: none;
+    display: flex; align-items: center; gap: 8px;
+    transition: color 0.3s;
+  }
+  .btn-ghost:hover { color: var(--white); }
+  .btn-ghost::after { content: '→'; font-size: 14px; }
+
+  .hero-scroll {
+    position: absolute; right: 48px; bottom: 64px;
+    display: flex; flex-direction: column; align-items: center; gap: 12px;
+    opacity: 0;
+    animation: fadeIn 1s ease 1.8s forwards;
+  }
+  .scroll-label {
+    font-size: 9px; letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: rgba(245,240,232,0.5);
+    writing-mode: vertical-rl;
+  }
+  .scroll-line {
+    width: 1px; height: 48px;
+    background: rgba(245,240,232,0.3);
+    position: relative; overflow: hidden;
+  }
+  .scroll-line::after {
+    content: '';
+    position: absolute; top: -100%; left: 0;
+    width: 1px; height: 100%;
+    background: var(--accent-light);
+    animation: scrollDrop 1.8s ease-in-out 2s infinite;
+  }
+  @keyframes scrollDrop {
+    from { top: -100%; } to { top: 100%; }
+  }
+
+  /* ─── ABOUT STRIP ─── */
+  .about-strip {
+    background: var(--cream);
+    color: var(--charcoal);
+    padding: 100px 48px;
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 80px;
+    align-items: start;
+  }
+  .about-label {
+    font-size: 11px; letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 16px;
+  }
+  .about-heading {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(36px, 3.5vw, 52px);
+    font-weight: 300;
+    line-height: 1.15;
+    color: var(--charcoal);
+  }
+  .about-heading em { font-style: italic; color: var(--accent); }
+  .about-body {
+    font-size: 15px; font-weight: 300;
+    line-height: 1.85;
+    color: var(--mid);
+    margin-top: 28px;
+    max-width: 560px;
+  }
+  .about-stats {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 28px; margin-top: 48px;
+  }
+  .stat-num {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 48px; font-weight: 300;
+    color: var(--charcoal); line-height: 1;
+  }
+  .stat-label {
+    font-size: 11px; letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--accent); margin-top: 6px;
+  }
+
+  /* ─── PROJECTS GRID ─── */
+  .projects {
+    background: var(--charcoal);
+    padding: 100px 48px;
+  }
+  .section-header {
+    display: flex; align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 56px;
+  }
+  .section-label {
+    font-size: 11px; letter-spacing: 0.22em;
+    text-transform: uppercase; color: var(--accent-light);
+  }
+  .section-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(32px, 3vw, 44px);
+    font-weight: 300; color: var(--cream);
+  }
+  .section-link {
+    font-size: 11px; letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(245,240,232,0.5);
+    text-decoration: none;
+    display: flex; align-items: center; gap: 6px;
+    transition: color 0.3s;
+  }
+  .section-link:hover { color: var(--accent-light); }
+  .section-link::after { content: '→'; }
+
+  .grid-projects {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr;
+    grid-template-rows: 340px 260px;
+    gap: 12px;
+  }
+  .project-card {
+    position: relative; overflow: hidden;
+    cursor: pointer;
+  }
+  .project-card:first-child { grid-row: 1 / 3; }
+  .project-img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    transition: transform 0.7s cubic-bezier(0.16,1,0.3,1);
+    filter: brightness(0.82);
+  }
+  .project-card:hover .project-img { transform: scale(1.05); }
+  .project-info {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    padding: 24px 20px 20px;
+    background: linear-gradient(to top, rgba(28,28,26,0.9) 0%, transparent 100%);
+    transform: translateY(4px);
+    transition: transform 0.4s;
+  }
+  .project-card:hover .project-info { transform: translateY(0); }
+  .project-cat {
+    font-size: 10px; letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--accent-light); margin-bottom: 6px;
+  }
+  .project-name {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 22px; font-weight: 300;
+    color: var(--white);
+  }
+
+  /* ─── SERVICES ─── */
+  .services {
+    background: var(--mid);
+    padding: 100px 48px;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 2px;
+  }
+  .service-block {
+    background: var(--charcoal);
+    padding: 48px 32px;
+    border-top: 1px solid rgba(196,168,130,0.2);
+    transition: background 0.3s;
+  }
+  .service-block:hover { background: #242420; }
+  .service-num {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 13px; letter-spacing: 0.12em;
+    color: var(--accent); margin-bottom: 32px;
+  }
+  .service-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 24px; font-weight: 300;
+    color: var(--cream); margin-bottom: 20px;
+    line-height: 1.2;
+  }
+  .service-desc {
+    font-size: 13px; font-weight: 300;
+    color: rgba(214,205,191,0.6);
+    line-height: 1.8;
+  }
+
+  /* ─── AWARDS ─── */
+  .awards {
+    background: var(--cream);
+    color: var(--charcoal);
+    padding: 80px 48px;
+    display: flex; align-items: center; gap: 80px;
+  }
+  .awards-left {
+    flex: 0 0 auto;
+  }
+  .awards-heading {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 44px; font-weight: 300;
+    color: var(--charcoal);
+  }
+  .awards-heading em { font-style: italic; color: var(--accent); }
+  .awards-list {
+    flex: 1;
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 0;
+    border-left: 1px solid rgba(139,115,85,0.25);
+    padding-left: 80px;
+  }
+  .award-item {
+    padding: 24px 0;
+    border-bottom: 0.5px solid rgba(139,115,85,0.2);
+  }
+  .award-year { font-size: 11px; letter-spacing: 0.16em; color: var(--accent); }
+  .award-name { font-size: 15px; font-weight: 400; color: var(--charcoal); margin-top: 6px; }
+
+  /* ─── CONTACT FOOTER ─── */
+  .contact {
+    background: var(--charcoal);
+    padding: 120px 48px 60px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 80px;
+    border-top: 1px solid rgba(196,168,130,0.12);
+  }
+  .contact-cta {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: clamp(40px, 4.5vw, 64px);
+    font-weight: 300; line-height: 1.1;
+    color: var(--white);
+  }
+  .contact-cta em { font-style: italic; color: var(--accent-light); }
+  .contact-details { display: flex; flex-direction: column; gap: 32px; padding-top: 12px; }
+  .contact-group-label {
+    font-size: 10px; letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--accent); margin-bottom: 8px;
+  }
+  .contact-val {
+    font-size: 14px; font-weight: 300;
+    color: rgba(245,240,232,0.7); line-height: 1.7;
+    text-decoration: none;
+  }
+  .contact-val:hover { color: var(--accent-light); }
+
+  .footer-bar {
+    background: var(--charcoal);
+    padding: 24px 48px;
+    border-top: 0.5px solid rgba(196,168,130,0.12);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .footer-copy {
+    font-size: 11px; letter-spacing: 0.1em;
+    color: rgba(245,240,232,0.3);
+  }
+  .footer-nav { display: flex; gap: 32px; list-style: none; }
+  .footer-nav a {
+    font-size: 10px; letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: rgba(245,240,232,0.35);
+    text-decoration: none;
+    transition: color 0.3s;
+  }
+  .footer-nav a:hover { color: var(--accent-light); }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; } to { opacity: 1; }
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a class="nav-logo" href="#">ASA <span>Architects</span></a>
+  <ul class="nav-links">
+    <li><a href="#about">About</a></li>
+    <li><a href="#projects">Projects</a></li>
+    <li><a href="#services">Services</a></li>
+    <li><a href="#awards">Awards</a></li>
+    <li><a href="#contact">Contact</a></li>
+  </ul>
+</nav>
+
+<!-- HERO — FULL SCREEN -->
+<section class="hero">
+  <div class="hero-bg"></div>
+  <p class="hero-eyebrow" style="position:relative">Johannesburg · Est. 1995</p>
+  <h1 class="hero-title" style="position:relative">
+    Architecture<br>that <em>shapes</em><br>the city
+  </h1>
+  <p class="hero-sub" style="position:relative">
+    A professional practice with wide-ranging experience in architectural and urban design — from affordable housing to landmark commercial developments.
+  </p>
+  <div class="hero-actions" style="position:relative">
+    <a class="btn-primary" href="#projects">View Projects</a>
+    <a class="btn-ghost" href="#about">Our Studio</a>
+  </div>
+  <div class="hero-scroll">
+    <span class="scroll-label">Scroll</span>
+    <div class="scroll-line"></div>
+  </div>
+</section>
+
+<!-- ABOUT -->
+<section class="about-strip" id="about">
+  <div>
+    <p class="about-label">About the Practice</p>
+    <h2 class="about-heading">Built on<br><em>craft</em> &amp;<br>conviction</h2>
+  </div>
+  <div>
+    <p class="about-body">
+      ASA Architects is a South African practice founded on the belief that good architecture creates more equitable, beautiful, and enduring communities. Our work spans residential, commercial, urban design, and affordable housing — each project approached with the same rigour and sensitivity.
+    </p>
+    <p class="about-body" style="margin-top:20px">
+      We collaborate closely with our clients to understand not just what they need today, but what their communities will require in the decades ahead.
+    </p>
+    <div class="about-stats">
+      <div>
+        <div class="stat-num">28+</div>
+        <div class="stat-label">Years of Practice</div>
+      </div>
+      <div>
+        <div class="stat-num">140+</div>
+        <div class="stat-label">Projects Delivered</div>
+      </div>
+      <div>
+        <div class="stat-num">12</div>
+        <div class="stat-label">Industry Awards</div>
+      </div>
+      <div>
+        <div class="stat-num">4</div>
+        <div class="stat-label">Project Sectors</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PROJECTS -->
+<section class="projects" id="projects">
+  <div class="section-header">
+    <div>
+      <p class="section-label">Selected Work</p>
+      <h2 class="section-title">Projects</h2>
+    </div>
+    <a class="section-link" href="#">All Projects</a>
+  </div>
+  <div class="grid-projects">
+    <div class="project-card">
+      <img class="project-img" src="https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=900&q=80" alt="Affordable Housing" />
+      <div class="project-info">
+        <p class="project-cat">Affordable Housing</p>
+        <p class="project-name">Diepsloot Community Residences</p>
+      </div>
+    </div>
+    <div class="project-card">
+      <img class="project-img" src="https://images.unsplash.com/photo-1486325212027-8081e485255e?w=700&q=80" alt="Commercial" />
+      <div class="project-info">
+        <p class="project-cat">Commercial / Entertainment</p>
+        <p class="project-name">The Atrium Complex</p>
+      </div>
+    </div>
+    <div class="project-card">
+      <img class="project-img" src="https://images.unsplash.com/photo-1600607688969-a5bfcd646154?w=700&q=80" alt="Mid to Upmarket" />
+      <div class="project-info">
+        <p class="project-cat">Mid to Upmarket</p>
+        <p class="project-name">Sandton Ridge Residence</p>
+      </div>
+    </div>
+    <div class="project-card">
+      <img class="project-img" src="https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=700&q=80" alt="Urban Design" />
+      <div class="project-info">
+        <p class="project-cat">Urban Design</p>
+        <p class="project-name">Newtown Precinct Plan</p>
+      </div>
+    </div>
+    <div class="project-card">
+      <img class="project-img" src="https://images.unsplash.com/photo-1611105989369-d8e529f7c0d7?w=700&q=80" alt="Architecture" />
+      <div class="project-info">
+        <p class="project-cat">Residential</p>
+        <p class="project-name">Houghton Villa</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SERVICES -->
+<section class="services" id="services">
+  <div class="service-block">
+    <p class="service-num">01</p>
+    <h3 class="service-title">Architectural Design</h3>
+    <p class="service-desc">From concept through construction — buildings designed to endure and inspire.</p>
+  </div>
+  <div class="service-block">
+    <p class="service-num">02</p>
+    <h3 class="service-title">Urban Design</h3>
+    <p class="service-desc">Shaping precincts, streetscapes, and frameworks for liveable cities.</p>
+  </div>
+  <div class="service-block">
+    <p class="service-num">03</p>
+    <h3 class="service-title">Affordable Housing</h3>
+    <p class="service-desc">Dignified, sustainable homes for communities at every income level.</p>
+  </div>
+  <div class="service-block">
+    <p class="service-num">04</p>
+    <h3 class="service-title">Project Management</h3>
+    <p class="service-desc">Full site oversight and coordination from brief to handover.</p>
+  </div>
+</section>
+
+<!-- AWARDS -->
+<section class="awards" id="awards">
+  <div class="awards-left">
+    <h2 class="awards-heading">Award-<br><em>winning</em><br>work</h2>
+  </div>
+  <div class="awards-list">
+    <div class="award-item">
+      <p class="award-year">2022</p>
+      <p class="award-name">SAIA Award of Merit — Residential</p>
+    </div>
+    <div class="award-item">
+      <p class="award-year">2021</p>
+      <p class="award-name">SACAP Excellence in Practice</p>
+    </div>
+    <div class="award-item">
+      <p class="award-year">2019</p>
+      <p class="award-name">Affordable Housing Design Award</p>
+    </div>
+    <div class="award-item">
+      <p class="award-year">2018</p>
+      <p class="award-name">Gauteng Urban Design Prize</p>
+    </div>
+    <div class="award-item" style="border-bottom:none">
+      <p class="award-year">2016</p>
+      <p class="award-name">SAPOA Property Development Award</p>
+    </div>
+    <div class="award-item" style="border-bottom:none">
+      <p class="award-year">2014</p>
+      <p class="award-name">SAIA Regional Award</p>
+    </div>
+  </div>
+</section>
+
+<!-- CONTACT -->
+<section class="contact" id="contact">
+  <h2 class="contact-cta">Let's build<br>something <em>worth</em><br>remembering</h2>
+  <div class="contact-details">
+    <div>
+      <p class="contact-group-label">Get in Touch</p>
+      <a class="contact-val" href="mailto:info@asaarchitects.co.za">info@asaarchitects.co.za</a><br>
+      <a class="contact-val" href="tel:+27115551234">+27 11 555 1234</a>
+    </div>
+    <div>
+      <p class="contact-group-label">Studio</p>
+      <p class="contact-val">Johannesburg, South Africa</p>
+    </div>
+    <div>
+      <a class="btn-primary" href="mailto:info@asaarchitects.co.za" style="display:inline-block">Start a Conversation</a>
+    </div>
+  </div>
+</section>
+
+<footer class="footer-bar">
+  <p class="footer-copy">© 2025 ASA Architects. All rights reserved.</p>
+  <ul class="footer-nav">
+    <li><a href="#">Privacy</a></li>
+    <li><a href="#">Terms</a></li>
+    <li><a href="#">LinkedIn</a></li>
+  </ul>
+</footer>
+
+</body>
+</html>

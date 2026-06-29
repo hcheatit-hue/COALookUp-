@@ -1,0 +1,306 @@
+from flask import Flask, render_template, request, jsonify, send_file
+import pyodbc
+import pandas as pd
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from openpyxl.utils import get_column_letter
+import io
+import os
+import logging
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+app = Flask(__name__)
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+# DB configuration with environment variables support
+SERVER   = os.getenv('GL_DB_SERVER', r'HCHDB01\SSINFOR')
+DATABASE = os.getenv('GL_DB_DATABASE', 'SSHCHEAT')
+DB_DRIVER = os.getenv('GL_DB_DRIVER', '{ODBC Driver 17 for SQL Server}')
+DB_USER = os.getenv('GL_DB_USER', '')
+DB_PASSWORD = os.getenv('GL_DB_PASSWORD', '')
+DB_ENCRYPT = os.getenv('GL_DB_ENCRYPT', 'yes')
+DB_TRUST_CERT = os.getenv('GL_DB_TRUST_CERT', 'yes')
+
+def get_conn():
+    """Get database connection with error handling."""
+    try:
+        # Build connection string based on available credentials
+        if DB_USER and DB_PASSWORD:
+            # SQL Server authentication
+            conn_string = (
+                f'DRIVER={DB_DRIVER};'
+                f'SERVER={SERVER};'
+                f'DATABASE={DATABASE};'
+                f'UID={DB_USER};'
+                f'PWD={DB_PASSWORD};'
+                f'Encrypt={DB_ENCRYPT};'
+                f'TrustServerCertificate={DB_TRUST_CERT};'
+            )
+            logger.debug(f"Using SQL Server authentication for {DB_USER}@{SERVER}")
+        else:
+            # Windows integrated authentication
+            conn_string = (
+                f'DRIVER={DB_DRIVER};'
+                f'SERVER={SERVER};'
+                f'DATABASE={DATABASE};'
+                f'Trusted_Connection=yes;'
+                f'Encrypt={DB_ENCRYPT};'
+                f'TrustServerCertificate={DB_TRUST_CERT};'
+            )
+            logger.debug(f"Using Windows integrated authentication for {SERVER}")
+        
+        conn = pyodbc.connect(conn_string, autocommit=True)
+        logger.info(f"Database connection successful to {SERVER}/{DATABASE}")
+        return conn
+    except pyodbc.DatabaseError as e:
+        logger.error(f"Database connection failed: {str(e)}")
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected connection error: {str(e)}")
+        raise
+
+PERIOD_TO_MONTH = {1:3,2:4,3:5,4:6,5:7,6:8,7:9,8:10,9:11,10:12,11:1,12:2}
+
+def build_query(search, start_year, start_period, end_year, end_period):
+    sql = """
+    SELECT
+        a.ID                        AS Account_ID,
+        a.DESCRIPTION               AS Description,
+        ab.ACCT_YEAR                AS Fiscal_Year,
+        ab.ACCT_PERIOD              AS Fiscal_Period,
+        FORMAT(DATEFROMPARTS(
+            CASE WHEN ab.ACCT_PERIOD >= 11 THEN ab.ACCT_YEAR ELSE ab.ACCT_YEAR - 1 END,
+            CASE ab.ACCT_PERIOD
+                WHEN 1 THEN 3 WHEN 2 THEN 4 WHEN 3 THEN 5 WHEN 4 THEN 6
+                WHEN 5 THEN 7 WHEN 6 THEN 8 WHEN 7 THEN 9 WHEN 8 THEN 10
+                WHEN 9 THEN 11 WHEN 10 THEN 12 WHEN 11 THEN 1 WHEN 12 THEN 2
+            END, 1), 'MMM/yyyy')    AS Period,
+        ab.CURR_BALANCE             AS Balance,
+        (ab.DEBIT_BUDGET - ab.CREDIT_BUDGET) AS Budget,
+        SUM(ab.DEBIT_BUDGET - ab.CREDIT_BUDGET)
+            OVER (PARTITION BY ab.ACCOUNT_ID, ab.ACCT_YEAR ORDER BY ab.ACCT_PERIOD)
+                                    AS Cumulative_Budget,
+        ab.CURR_BALANCE - (ab.DEBIT_BUDGET - ab.CREDIT_BUDGET) AS Variance
+    FROM ACCOUNT a
+    INNER JOIN ACCOUNT_BALANCE ab ON a.ID = ab.ACCOUNT_ID
+    WHERE (a.ID LIKE ? OR a.DESCRIPTION LIKE ?)
+      AND (
+            (ab.ACCT_YEAR > ? OR (ab.ACCT_YEAR = ? AND ab.ACCT_PERIOD >= ?))
+        AND (ab.ACCT_YEAR < ? OR (ab.ACCT_YEAR = ? AND ab.ACCT_PERIOD <= ?))
+      )
+    ORDER BY a.ID, ab.ACCT_YEAR, ab.ACCT_PERIOD
+    """
+    like = f'%{search}%'
+    params = (
+        like, like,
+        start_year, start_year, start_period,
+        end_year,   end_year,   end_period
+    )
+    return sql, params
+
+@app.route('/')
+def index():
+    return render_template('indexgl.html')
+
+@app.route('/api/search')
+def search():
+    try:
+        q            = request.args.get('q', '').strip()
+        start_year   = int(request.args.get('start_year',  2025))
+        start_period = int(request.args.get('start_period', 1))
+        end_year     = int(request.args.get('end_year',    2026))
+        end_period   = int(request.args.get('end_period',  12))
+
+        # Input validation
+        if not q:
+            return jsonify({'error': 'Please enter an Account ID or Description'}), 400
+        
+        if len(q) < 2:
+            return jsonify({'error': 'Search query must be at least 2 characters'}), 400
+        
+        if start_year < 2000 or start_year > 2099 or end_year < 2000 or end_year > 2099:
+            return jsonify({'error': 'Invalid year range. Please use years between 2000-2099'}), 400
+        
+        if start_period < 1 or start_period > 12 or end_period < 1 or end_period > 12:
+            return jsonify({'error': 'Invalid period. Please use periods between 1-12'}), 400
+        
+        # Validate date range logic
+        if (start_year > end_year) or (start_year == end_year and start_period > end_period):
+            return jsonify({'error': 'Start date must be before or equal to end date'}), 400
+
+        logger.info(f"Searching GL data: query='{q}', range={start_year}/P{start_period}-{end_year}/P{end_period}")
+        
+        sql, params = build_query(q, start_year, start_period, end_year, end_period)
+        conn = get_conn()
+        df = pd.read_sql(sql, conn, params=params)
+        conn.close()
+        
+        logger.info(f"Query returned {len(df)} records")
+        return jsonify({'data': df.to_dict(orient='records'), 'count': len(df)})
+    except ValueError as e:
+        logger.error(f"Invalid parameter: {str(e)}")
+        return jsonify({'error': 'Invalid parameter format'}), 400
+    except pyodbc.DatabaseError as e:
+        logger.error(f"Database error in search: {str(e)}")
+        return jsonify({'error': 'Database connection failed'}), 503
+    except Exception as e:
+        logger.error(f"Error in search: {str(e)}")
+        return jsonify({'error': 'An unexpected error occurred'}), 500
+
+@app.route('/api/export')
+def export():
+    try:
+        q            = request.args.get('q', '').strip()
+        start_year   = int(request.args.get('start_year',  2025))
+        start_period = int(request.args.get('start_period', 1))
+        end_year     = int(request.args.get('end_year',    2026))
+        end_period   = int(request.args.get('end_period',  12))
+
+        # Input validation (same as search)
+        if not q:
+            return jsonify({'error': 'No search query'}), 400
+        
+        if len(q) < 2:
+            return jsonify({'error': 'Search query must be at least 2 characters'}), 400
+        
+        if start_year < 2000 or start_year > 2099 or end_year < 2000 or end_year > 2099:
+            return jsonify({'error': 'Invalid year range. Please use years between 2000-2099'}), 400
+        
+        if start_period < 1 or start_period > 12 or end_period < 1 or end_period > 12:
+            return jsonify({'error': 'Invalid period. Please use periods between 1-12'}), 400
+        
+        if (start_year > end_year) or (start_year == end_year and start_period > end_period):
+            return jsonify({'error': 'Start date must be before or equal to end date'}), 400
+
+        logger.info(f"Exporting GL data: query='{q}', range={start_year}/P{start_period}-{end_year}/P{end_period}")
+        
+        sql, params = build_query(q, start_year, start_period, end_year, end_period)
+        conn = get_conn()
+        df = pd.read_sql(sql, conn, params=params)
+        conn.close()
+        
+        if df.empty:
+            return jsonify({'error': 'No data found for the specified criteria'}), 404
+
+        # Drop internal columns
+        df = df.drop(columns=['Fiscal_Year', 'Fiscal_Period'])
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = 'General Ledger'
+
+        # Palette: Obsidian Gold
+        DARK    = '0C0C0F'
+        SURFACE = '1C1917'
+        GOLD    = 'BA7517'
+        LIGHT   = 'FAEEDA'
+        WHITE   = 'FFFFFF'
+
+        thin = Side(style='thin', color='333333')
+        border = Border(left=thin, right=thin, top=thin, bottom=thin)
+
+        # Title row
+        ws.merge_cells('A1:G1')
+        title_cell = ws['A1']
+        title_cell.value = f'General Ledger \u2014 Account: {q}'
+        title_cell.font = Font(name='Calibri', bold=True, size=14, color=LIGHT)
+        title_cell.fill = PatternFill('solid', start_color=DARK)
+        title_cell.alignment = Alignment(horizontal='center', vertical='center')
+        ws.row_dimensions[1].height = 32
+
+        # Subtitle
+        ws.merge_cells('A2:G2')
+        sub = ws['A2']
+        sub.value = f'Fiscal Period {start_year}/P{start_period} \u2192 {end_year}/P{end_period}'
+        sub.font = Font(name='Calibri', size=10, color=GOLD)
+        sub.fill = PatternFill('solid', start_color=SURFACE)
+        sub.alignment = Alignment(horizontal='center')
+        ws.row_dimensions[2].height = 20
+
+        # Headers
+        headers = ['Account ID', 'Description', 'Period', 'Balance', 'Budget', 'Cumulative Budget', 'Variance']
+        for col, h in enumerate(headers, 1):
+            cell = ws.cell(row=3, column=col, value=h)
+            cell.font = Font(name='Calibri', bold=True, size=10, color=LIGHT)
+            cell.fill = PatternFill('solid', start_color=GOLD)
+            cell.alignment = Alignment(horizontal='center', vertical='center')
+            cell.border = border
+        ws.row_dimensions[3].height = 20
+
+        # Data rows
+        money_fmt = '#,##0.00;(#,##0.00);"-'
+        for r_idx, row in enumerate(df.itertuples(index=False), 4):
+            bg = 'FFFFFF' if r_idx % 2 == 0 else 'F7F0E6'
+            for c_idx, val in enumerate(row, 1):
+                cell = ws.cell(row=r_idx, column=c_idx, value=val)
+                cell.fill = PatternFill('solid', start_color=bg)
+                cell.font = Font(name='Calibri', size=10)
+                cell.border = border
+                if c_idx in (4, 5, 6, 7):  # numeric cols
+                    cell.number_format = money_fmt
+                    cell.alignment = Alignment(horizontal='right')
+                elif c_idx == 1:
+                    cell.font = Font(name='Calibri', size=10, bold=True, color=GOLD[2:] if len(GOLD)>6 else GOLD)
+                    cell.alignment = Alignment(horizontal='left')
+
+        # Column widths
+        col_widths = [14, 36, 12, 18, 16, 20, 18]
+        for i, w in enumerate(col_widths, 1):
+            ws.column_dimensions[get_column_letter(i)].width = w
+
+        # Totals row
+        last_data = 3 + len(df)
+        total_row = last_data + 1
+        ws.merge_cells(f'A{total_row}:C{total_row}')
+        t = ws.cell(row=total_row, column=1, value='TOTAL')
+        t.font = Font(name='Calibri', bold=True, color=LIGHT)
+        t.fill = PatternFill('solid', start_color=DARK)
+        t.alignment = Alignment(horizontal='right')
+
+        for col in (4, 5, 7):
+            col_letter = get_column_letter(col)
+            cell = ws.cell(row=total_row, column=col,
+                           value=f'=SUM({col_letter}4:{col_letter}{last_data})')
+            cell.font = Font(name='Calibri', bold=True, color=LIGHT)
+            cell.fill = PatternFill('solid', start_color=DARK)
+            cell.number_format = money_fmt
+            cell.alignment = Alignment(horizontal='right')
+            cell.border = border
+
+        ws.cell(row=total_row, column=6).fill = PatternFill('solid', start_color=DARK)
+
+        ws.freeze_panes = 'A4'
+
+        buf = io.BytesIO()
+        wb.save(buf)
+        buf.seek(0)
+        filename = f'GL_{q.replace(" ","_")}_{start_year}P{start_period}-{end_year}P{end_period}.xlsx'
+        return send_file(buf, as_attachment=True, download_name=filename,
+                         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    except ValueError as e:
+        logger.error(f"Invalid parameter: {str(e)}")
+        return jsonify({'error': 'Invalid parameter format'}), 400
+    except pyodbc.DatabaseError as e:
+        logger.error(f"Database error in export: {str(e)}")
+        return jsonify({'error': 'Database connection failed'}), 503
+    except Exception as e:
+        logger.error(f"Error in export: {str(e)}")
+        return jsonify({'error': 'An unexpected error occurred'}), 500
+
+if __name__ == '__main__':
+    # Flask configuration from environment variables
+    FLASK_HOST = os.getenv('FLASK_HOST', '0.0.0.0')
+    FLASK_PORT = int(os.getenv('FLASK_PORT', 5060))
+    FLASK_DEBUG = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
+    
+    logger.info(f"Starting GL Lookup server on {FLASK_HOST}:{FLASK_PORT}")
+    app.run(host=FLASK_HOST, port=FLASK_PORT, debug=FLASK_DEBUG)

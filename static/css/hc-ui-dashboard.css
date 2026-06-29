@@ -1,0 +1,182 @@
+/* hc-ui-dashboard.css
+   Extends hc-ui.css / hc-ui-user.css with the layout this admin
+   dashboard needs: sidebar nav, KPI tiles, drill-down panels, trees.
+   Uses the same --hc-* tokens already defined in hc-ui.css so it
+   stays visually consistent with the rest of the app. */
+
+.dash-shell {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    min-height: 100vh;
+}
+
+@media (max-width: 860px) {
+    .dash-shell { grid-template-columns: 1fr; }
+    .dash-sidebar { position: sticky; top: 0; z-index: 20; }
+}
+
+.dash-sidebar {
+    background: var(--hc-surface);
+    border-right: 1px solid var(--hc-border);
+    padding: 22px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.dash-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 8px 18px;
+    margin-bottom: 6px;
+    border-bottom: 1px solid var(--hc-border);
+}
+.dash-brand .gl-logo { margin-bottom: 0; width: 36px; height: 36px; font-size: 14px; border-radius: 12px; }
+.dash-brand-text { font-weight: 800; font-size: 14px; letter-spacing: -.01em; }
+.dash-brand-sub { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--hc-muted); }
+
+.dash-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    color: var(--hc-muted);
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: .15s ease;
+    user-select: none;
+}
+.dash-nav-item:hover { color: var(--hc-text); background: var(--hc-surface-2); }
+.dash-nav-item.active {
+    color: var(--hc-accent);
+    background: linear-gradient(135deg, rgba(227,6,19,.16), rgba(227,6,19,.05));
+    border-color: rgba(227,6,19,.35);
+}
+.dash-nav-icon { font-family: 'JetBrains Mono', monospace; font-size: 13px; width: 18px; text-align: center; }
+
+.dash-main {
+    padding: 26px 28px 80px;
+    max-width: 1320px;
+}
+@media (max-width: 640px) { .dash-main { padding: 18px 16px 60px; } }
+
+.dash-view { display: none; }
+.dash-view.active { display: block; }
+
+.dash-page-title {
+    font-size: clamp(20px, 2.4vw, 28px);
+    font-weight: 800;
+    letter-spacing: -.02em;
+    margin: 0 0 4px;
+}
+.dash-page-sub {
+    color: var(--hc-muted);
+    font-size: 13px;
+    margin: 0 0 22px;
+}
+
+/* Breadcrumb-ish back link for drill-down panels */
+.dash-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--hc-muted);
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+    margin-bottom: 14px;
+    font-family: 'JetBrains Mono', monospace;
+}
+.dash-back:hover { color: var(--hc-accent); }
+
+/* Clickable rows -> drill in */
+.row-link { cursor: pointer; }
+.row-link:hover td { color: var(--hc-text) !important; }
+.row-link:hover { background: rgba(227,6,19,.06); }
+
+/* Searchable list controls reused across views */
+.dash-toolbar {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    margin-bottom: 16px;
+}
+
+/* Pill summary chips, e.g. "63 Full Access · 12 Read Only · 4 No Access" */
+.chip-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--hc-border);
+    background: var(--hc-surface-2);
+    font-size: 12px;
+    font-weight: 800;
+    color: var(--hc-text);
+}
+.chip .dot { width: 7px; height: 7px; border-radius: 50%; }
+.dot-y { background: #34d399; }
+.dot-r { background: #60a5fa; }
+.dot-n { background: #fb7185; }
+
+/* Empty state */
+.empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--hc-muted);
+    font-size: 13px;
+}
+.empty-state .big { font-size: 28px; margin-bottom: 8px; }
+
+/* Two-column drill layout: member list + permission table */
+.drill-grid {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 16px;
+}
+@media (max-width: 860px) { .drill-grid { grid-template-columns: 1fr; } }
+
+.member-list {
+    max-height: 520px;
+    overflow-y: auto;
+}
+.member-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 9px 10px;
+    border-radius: 10px;
+    font-size: 13px;
+    cursor: pointer;
+}
+.member-row:hover { background: var(--hc-surface-2); }
+.member-row.active { background: rgba(227,6,19,.14); color: var(--hc-accent); }
+.member-flags { display: flex; gap: 4px; }
+.flag-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--hc-muted); }
+.flag-dot.on { background: var(--hc-accent); }
+
+/* loading shimmer */
+.skeleton-row { height: 14px; border-radius: 6px; background: var(--hc-surface-2); margin: 8px 0; animation: pulse 1.2s ease-in-out infinite; }
+@keyframes pulse { 0%,100% { opacity: .5; } 50% { opacity: 1; } }
+
+/* alert/no-data-risk banner */
+.risk-banner {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    background: rgba(245,158,11,.10);
+    border: 1px solid rgba(245,158,11,.35);
+    border-radius: 16px;
+    padding: 14px 16px;
+    margin-bottom: 18px;
+    font-size: 12.5px;
+    color: var(--hc-text);
+}
+.risk-banner b { color: #f59e0b; }

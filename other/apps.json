@@ -1,0 +1,29 @@
+[
+  {
+    "name": "COA File Look Up",
+    "type": "python",
+    "path": "C:\\Users\\motebejanec\\OneDrive - HC Heat Exchangers\\Documents\\Code\\HC\\COALookUp",
+    "cmd": "python app.py",
+    "icon": "\ud83d\udcbb",
+    "id": "1",
+    "running": false
+  },
+  {
+    "name": "Archives",
+    "type": "node",
+    "path": "C:\\Users\\motebejanec\\OneDrive - HC Heat Exchangers\\Documents\\Code\\HC\\COA_File\\coa_file_registry_app",
+    "cmd": "python app.py",
+    "icon": "\ud83d\udee0",
+    "id": "2",
+    "running": false
+  },
+  {
+    "name": "SharePoint Auditor",
+    "type": "python",
+    "path": "C:\\Users\\motebejanec\\OneDrive - HC Heat Exchangers\\Documents\\Code\\HC\\sp-audit-app",
+    "cmd": "python app.py",
+    "icon": "\ud83d\udce1",
+    "id": "3",
+    "running": false
+  }
+]

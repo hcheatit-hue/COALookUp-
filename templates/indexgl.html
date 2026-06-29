@@ -1,0 +1,713 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>GL Account Lookup — HC Heat Exchangers</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<style>
+:root {
+  --hc-base:#f6f7f9;
+  --hc-surface:#ffffff;
+  --hc-surface-2:#f1f3f5;
+  --hc-border:#d9dee3;
+  --hc-accent:#E30613;
+  --hc-accent-2:#ff6b6b;
+  --hc-text:#1f2933;
+  --hc-muted:#687385;
+  --hc-success:#059669;
+  --hc-success-bg:#ecfdf5;
+  --hc-danger-bg:#fff1f2;
+  --hc-shadow:0 18px 45px rgba(17,24,39,.08);
+  --hc-radius:22px;
+}
+[data-theme="dark"] {
+  --hc-base:#08090d;
+  --hc-surface:#12141a;
+  --hc-surface-2:#1b1e27;
+  --hc-border:#2a2f3a;
+  --hc-accent:#ff4757;
+  --hc-accent-2:#ff7a85;
+  --hc-text:#f3f4f6;
+  --hc-muted:#a5adba;
+  --hc-success:#34d399;
+  --hc-success-bg:#062e1a;
+  --hc-danger-bg:#2b0b12;
+  --hc-shadow:0 18px 45px rgba(0,0,0,.35);
+}
+* { box-sizing:border-box; }
+body {
+  margin:0;
+  min-height:100vh;
+  background:
+    radial-gradient(circle at top left, rgba(227,6,19,.11), transparent 34rem),
+    radial-gradient(circle at bottom right, rgba(31,41,55,.08), transparent 32rem),
+    var(--hc-base);
+  color:var(--hc-text);
+  font-family:'Syne', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size:14px;
+}
+body::before {
+  content:'';
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  opacity:.42;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='.035'/%3E%3C/svg%3E");
+}
+.app { max-width:1320px; margin:0 auto; padding:24px 18px 70px; position:relative; z-index:1; }
+@media (min-width:768px) { .app { padding:32px 28px 84px; } }
+.gl-shell { display:grid; gap:18px; }
+.bento-card {
+  background:rgba(255,255,255,.82);
+  background:color-mix(in srgb, var(--hc-surface) 92%, transparent);
+  border:1px solid var(--hc-border);
+  border-radius:var(--hc-radius);
+  box-shadow:var(--hc-shadow);
+  overflow:hidden;
+}
+[data-theme="dark"] .bento-card { background:rgba(18,20,26,.9); }
+.bento-pad { padding:20px; }
+@media (min-width:768px) { .bento-pad { padding:24px; } }
+.gl-header-card {
+  min-height:154px;
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+  position:relative;
+}
+.gl-header-card::after {
+  content:''; position:absolute; width:190px; height:190px; right:-72px; top:-72px;
+  background:radial-gradient(circle, rgba(227,6,19,.20), transparent 64%);
+}
+.gl-logo {
+  width:48px; height:48px; border-radius:16px; background:var(--hc-accent); color:#fff;
+  display:grid; place-items:center; font-family:'JetBrains Mono', monospace; font-size:18px; font-weight:700;
+}
+.eyebrow { font-family:'JetBrains Mono', monospace; color:var(--hc-accent); font-size:11px; letter-spacing:.09em; text-transform:uppercase; }
+.gl-title { font-size:clamp(24px, 3vw, 38px); line-height:1.05; letter-spacing:-.055em; font-weight:800; margin:0; }
+.gl-subtitle { color:var(--hc-muted); margin:8px 0 0; font-size:13px; }
+.gl-action-btn {
+  border:1px solid var(--hc-border); background:var(--hc-surface-2); color:var(--hc-text);
+  border-radius:14px; padding:10px 14px; font-weight:700; font-size:13px; text-decoration:none;
+}
+.gl-action-btn:hover { border-color:var(--hc-accent); color:var(--hc-accent); }
+.search-input-wrap { position:relative; }
+.search-input, select.search-input, input.search-input {
+  width:100%; border:1px solid var(--hc-border); background:var(--hc-surface); color:var(--hc-text);
+  border-radius:16px; padding:12px 14px; outline:none; font-family:'JetBrains Mono', monospace; font-size:13px;
+}
+.search-input:focus { border-color:var(--hc-accent); box-shadow:0 0 0 .22rem rgba(227,6,19,.10); }
+.gl-field label, .field-label { display:block; color:var(--hc-muted); font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; margin-bottom:7px; }
+.gl-btn-row { display:flex; flex-wrap:wrap; gap:10px; }
+.gl-btn {
+  border:0; border-radius:16px; padding:12px 18px; display:inline-flex; align-items:center; gap:8px;
+  font-weight:800; transition:.18s ease; font-size:13px;
+}
+.gl-btn-primary { background:var(--hc-accent); color:#fff; }
+.gl-btn-primary:hover { background:var(--hc-accent-2); transform:translateY(-1px); }
+.gl-btn-export { background:var(--hc-surface-2); border:1px solid var(--hc-border); color:var(--hc-text); }
+.gl-btn-export:hover:not(:disabled) { border-color:var(--hc-accent); color:var(--hc-accent); }
+.gl-btn:disabled { opacity:.45; cursor:not-allowed; }
+.gl-error-msg { display:none; margin-top:14px; background:var(--hc-danger-bg); border:1px solid rgba(227,6,19,.24); color:var(--hc-accent); border-radius:16px; padding:12px 14px; font-size:13px; }
+.kpi-tile {
+  background:var(--hc-surface); border:1px solid var(--hc-border); border-radius:20px; padding:18px;
+  min-height:118px; display:flex; flex-direction:column; justify-content:space-between;
+}
+.kpi-label { color:var(--hc-muted); font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.07em; }
+.gl-kpi-value { font-family:'JetBrains Mono', monospace; font-size:clamp(18px, 2.4vw, 25px); color:var(--hc-accent); font-weight:700; word-break:break-word; }
+.gl-kpi-value.pos { color:var(--hc-success); }
+.gl-kpi-value.neg { color:var(--hc-accent); }
+.results-card { min-height:420px; }
+.gl-state { padding:70px 22px; text-align:center; color:var(--hc-muted); }
+.gl-state svg { margin-bottom:14px; opacity:.46; }
+.gl-state p { margin:0; font-weight:700; color:var(--hc-text); }
+.gl-state p.hint { margin-top:8px; color:var(--hc-muted); font-size:12px; font-weight:500; }
+.gl-spinner { width:32px; height:32px; border:3px solid var(--hc-border); border-top-color:var(--hc-accent); border-radius:50%; animation:spin .7s linear infinite; margin:0 auto 12px; }
+@keyframes spin { to { transform:rotate(360deg); } }
+.gl-table-header { padding:16px 20px; display:flex; align-items:center; justify-content:space-between; gap:12px; border-bottom:1px solid var(--hc-border); }
+.gl-table-header span:first-child { font-weight:800; color:var(--hc-text); }
+.gl-badge { background:var(--hc-surface-2); color:var(--hc-accent); border:1px solid var(--hc-border); border-radius:999px; padding:5px 11px; font-family:'JetBrains Mono', monospace; font-size:11px; white-space:nowrap; }
+.gl-table-wrap { overflow-x:auto; }
+table { width:100%; border-collapse:collapse; min-width:920px; }
+thead th { background:var(--hc-surface-2); color:var(--hc-muted); padding:12px 14px; font-size:11px; text-transform:uppercase; letter-spacing:.06em; white-space:nowrap; }
+thead th.num, tbody td.num, tfoot td { text-align:right; }
+tbody tr { border-bottom:1px solid var(--hc-border); }
+tbody tr:hover { background:var(--hc-surface-2); }
+tbody td { padding:12px 14px; color:var(--hc-text); white-space:nowrap; }
+.mono, tbody td.num { font-family:'JetBrains Mono', monospace; font-size:12px; }
+.acct-id { color:var(--hc-accent); font-weight:800; }
+.neg { color:var(--hc-accent)!important; }
+.pos { color:var(--hc-success)!important; }
+tfoot td { background:var(--hc-surface-2); padding:13px 14px; border-top:2px solid var(--hc-accent); font-family:'JetBrains Mono', monospace; font-size:12px; font-weight:800; }
+tfoot td:first-child { text-align:left; color:var(--hc-accent); text-transform:uppercase; letter-spacing:.08em; }
+.quick-panel { min-height:100%; }
+.quick-item { display:flex; justify-content:space-between; gap:12px; padding:12px 0; border-bottom:1px solid var(--hc-border); }
+.quick-item:last-child { border-bottom:0; }
+.quick-label { color:var(--hc-muted); font-size:12px; }
+.quick-value { font-family:'JetBrains Mono', monospace; font-size:12px; color:var(--hc-text); text-align:right; }
+::-webkit-scrollbar { width:7px; height:7px; }
+::-webkit-scrollbar-track { background:var(--hc-surface-2); }
+::-webkit-scrollbar-thumb { background:var(--hc-border); border-radius:999px; }
+@media print {
+  body { background:#fff!important; }
+  .gl-action-btn, .gl-search-card, .quick-panel { display:none!important; }
+  .bento-card { box-shadow:none!important; border:1px solid #ccc!important; }
+  .app { max-width:none; padding:0; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="gl-shell">
+    <div class="row g-3 align-items-stretch">
+      <div class="col-lg-8">
+        <section class="bento-card gl-header-card bento-pad h-100">
+          <div class="d-flex align-items-start justify-content-between gap-3 position-relative" style="z-index:1">
+            <div class="d-flex align-items-center gap-3">
+              <div class="gl-logo">GL</div>
+              <div>
+                <div class="eyebrow">General Ledger Lookup</div>
+                <h1 class="gl-title">Account movement and budget view</h1>
+                <p class="gl-subtitle">HC Heat Exchangers · Infor Visual · SSHCHEAT</p>
+              </div>
+            </div>
+          </div>
+          <div class="d-flex flex-wrap gap-2 mt-4 position-relative" style="z-index:1">
+            <a href="/" class="gl-action-btn">← Back to Orders</a>
+            <button type="button" class="gl-action-btn" id="themeToggle">Toggle theme</button>
+          </div>
+        </section>
+      </div>
+      <div class="col-lg-4">
+        <aside class="bento-card bento-pad quick-panel">
+          <div class="eyebrow mb-3">Search Defaults</div>
+          <div class="quick-item"><span class="quick-label">Start</span><span class="quick-value">FY 2025 · Period 1</span></div>
+          <div class="quick-item"><span class="quick-label">End</span><span class="quick-value">FY 2026 · Period 12</span></div>
+          <div class="quick-item"><span class="quick-label">Example</span><span class="quick-value">4254 / Loans</span></div>
+          <div class="quick-item"><span class="quick-label">Export</span><span class="quick-value">Enabled after results</span></div>
+        </aside>
+      </div>
+    </div>
+
+    <section class="bento-card bento-pad gl-search-card">
+      <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-3">
+        <div>
+          <div class="eyebrow">Search</div>
+          <h2 class="h5 fw-bold mb-0 mt-1">Find account by ID or description</h2>
+        </div>
+        <div class="gl-btn-row">
+          <button class="gl-btn gl-btn-primary" id="searchBtn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            Search
+          </button>
+          <button class="gl-btn gl-btn-export" id="exportBtn" onclick="exportExcel()" disabled>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Export Excel
+          </button>
+        </div>
+      </div>
+
+      <div class="row g-3">
+        <div class="col-12">
+          <label class="field-label" for="searchQ">Account ID or Description</label>
+          <input type="text" id="searchQ" class="search-input" placeholder="e.g. 4254 or Long Term Loans" />
+        </div>
+        <div class="col-6 col-lg-3 gl-field">
+          <label for="startYear">Start Fiscal Year</label>
+          <input type="number" id="startYear" value="2025" min="2000" max="2099" class="search-input" />
+        </div>
+        <div class="col-6 col-lg-3 gl-field">
+          <label for="startPeriod">Start Period</label>
+          <select id="startPeriod" class="search-input">
+            <option value="1">Period 1 (Mar)</option>
+            <option value="2">Period 2 (Apr)</option>
+            <option value="3">Period 3 (May)</option>
+            <option value="4">Period 4 (Jun)</option>
+            <option value="5">Period 5 (Jul)</option>
+            <option value="6">Period 6 (Aug)</option>
+            <option value="7">Period 7 (Sep)</option>
+            <option value="8">Period 8 (Oct)</option>
+            <option value="9">Period 9 (Nov)</option>
+            <option value="10">Period 10 (Dec)</option>
+            <option value="11">Period 11 (Jan)</option>
+            <option value="12">Period 12 (Feb)</option>
+          </select>
+        </div>
+        <div class="col-6 col-lg-3 gl-field">
+          <label for="endYear">End Fiscal Year</label>
+          <input type="number" id="endYear" value="2026" min="2000" max="2099" class="search-input" />
+        </div>
+        <div class="col-6 col-lg-3 gl-field">
+          <label for="endPeriod">End Period</label>
+          <select id="endPeriod" class="search-input">
+            <option value="1">Period 1 (Mar)</option>
+            <option value="2">Period 2 (Apr)</option>
+            <option value="3">Period 3 (May)</option>
+            <option value="4">Period 4 (Jun)</option>
+            <option value="5">Period 5 (Jul)</option>
+            <option value="6">Period 6 (Aug)</option>
+            <option value="7">Period 7 (Sep)</option>
+            <option value="8">Period 8 (Oct)</option>
+            <option value="9">Period 9 (Nov)</option>
+            <option value="10">Period 10 (Dec)</option>
+            <option value="11">Period 11 (Jan)</option>
+            <option value="12" selected>Period 12 (Feb)</option>
+          </select>
+        </div>
+      </div>
+      <div class="gl-error-msg" id="errorMsg"></div>
+    </section>
+
+    <section id="kpiStrip" style="display:none">
+      <div class="row g-3">
+        <div class="col-md-6 col-xl-3"><div class="kpi-tile"><div class="kpi-label">Periods</div><div class="gl-kpi-value" id="kpiPeriods">—</div></div></div>
+        <div class="col-md-6 col-xl-3"><div class="kpi-tile"><div class="kpi-label">Latest Balance</div><div class="gl-kpi-value" id="kpiBalance">—</div></div></div>
+        <div class="col-md-6 col-xl-3"><div class="kpi-tile"><div class="kpi-label">Negative Periods</div><div class="gl-kpi-value" id="kpiDebit">—</div></div></div>
+        <div class="col-md-6 col-xl-3"><div class="kpi-tile"><div class="kpi-label">Positive Periods</div><div class="gl-kpi-value" id="kpiCredit">—</div></div></div>
+      </div>
+    </section>
+
+    <section class="bento-card results-card">
+      <div class="gl-state" id="emptyState">
+        <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        <p>Enter an Account ID or Description to begin</p>
+        <p class="hint">Try <span style="color:var(--hc-accent);font-family:'JetBrains Mono',monospace">4254</span> or <span style="color:var(--hc-accent);font-family:'JetBrains Mono',monospace">Long Term Loans</span></p>
+      </div>
+      <div class="gl-state" id="loadingState" style="display:none">
+        <div class="gl-spinner"></div>
+        <p>Querying database…</p>
+      </div>
+      <div id="resultsWrap" style="display:none">
+        <div class="gl-table-header">
+          <span id="tableTitle">Results</span>
+          <span class="gl-badge" id="rowCount">0 rows</span>
+        </div>
+        <div class="gl-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Account ID</th>
+                <th>Description</th>
+                <th>Period</th>
+                <th class="num">Balance</th>
+                <th class="num">Budget</th>
+                <th class="num">Cum. Budget</th>
+                <th class="num">Variance</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+            <tfoot id="tableFoot"></tfoot>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script
+  let lastData = [];
+
+  const fmt = v => {
+    const n = parseFloat(v);
+    if (isNaN(n) || v === null || v === undefined) return 'R0.00';
+    const abs = Math.abs(n).toLocaleString('en-ZA', {minimumFractionDigits:2, maximumFractionDigits:2});
+    return n < 0 ? `(R${abs})` : `R${abs}`;
+  };
+
+  const validateParams = (p) => {
+    const errors = [];
+    
+    if (!p.q || p.q.trim().length < 2) {
+      errors.push('Search query must be at least 2 characters');
+    }
+    
+    const startYear = parseInt(p.start_year);
+    const endYear = parseInt(p.end_year);
+    const startPeriod = parseInt(p.start_period);
+    const endPeriod = parseInt(p.end_period);
+    
+    if (isNaN(startYear) || startYear < 2000 || startYear > 2099) {
+      errors.push('Start year must be between 2000-2099');
+    }
+    
+    if (isNaN(endYear) || endYear < 2000 || endYear > 2099) {
+      errors.push('End year must be between 2000-2099');
+    }
+    
+    if (isNaN(startPeriod) || startPeriod < 1 || startPeriod > 12) {
+      errors.push('Start period must be between 1-12');
+    }
+    
+    if (isNaN(endPeriod) || endPeriod < 1 || endPeriod > 12) {
+      errors.push('End period must be between 1-12');
+    }
+    
+    if ((startYear > endYear) || (startYear === endYear && startPeriod > endPeriod)) {
+      errors.push('Start date must be before or equal to end date');
+    }
+    
+    return errors;
+  };
+
+  const params = () => ({
+    q:            document.getElementById('searchQ').value.trim(),
+    start_year:   document.getElementById('startYear').value,
+    start_period: document.getElementById('startPeriod').value,
+    end_year:     document.getElementById('endYear').value,
+    end_period:   document.getElementById('endPeriod').value,
+  });
+
+  document.getElementById('searchQ').addEventListener('keydown', e => {
+    if (e.key === 'Enter') runSearch();
+  });
+
+  async function runSearch() {
+    const p = params();
+    
+    // Client-side validation
+    const validationErrors = validateParams(p);
+    if (validationErrors.length > 0) {
+      showError(validationErrors.join('. '));
+      return;
+    }
+    
+    hideError();
+    showState('loading');
+
+    const qs = new URLSearchParams(p).toString();
+    try {
+      const res = await fetch('/api/gl/search?' + qs);
+      
+      if (!res.ok) {
+        const json = await res.json();
+        showError(json.error || `Server error: ${res.status}`);
+        showState('empty');
+        return;
+      }
+      
+      const json = await res.json();
+      
+      if (!json.data || !Array.isArray(json.data)) {
+        showError('Invalid response from server');
+        showState('empty');
+        return;
+      }
+      
+      lastData = json.data;
+      renderTable(lastData);
+      renderKPIs(lastData);
+      document.getElementById('exportBtn').disabled = lastData.length === 0;
+    } catch(e) {
+      console.error('Search error:', e);
+      showError('Connection error: ' + e.message);
+      showState('empty');
+    }
+  }
+
+  function renderTable(data) {
+    if (!data || !data.length) { showState('empty'); return; }
+    showState('results');
+    document.getElementById('rowCount').textContent = data.length + ' rows';
+    
+    // Safely access first record properties
+    const firstRecord = data[0];
+    const accountId = firstRecord.Account_ID || 'Unknown';
+    const description = firstRecord.Description || 'Unknown';
+    document.getElementById('tableTitle').textContent = `${accountId} · ${description}`;
+
+    const tbody = document.getElementById('tableBody');
+    tbody.innerHTML = data.map(r => {
+      // Safe property access with fallbacks
+      const accountId = r.Account_ID || 'N/A';
+      const description = r.Description || 'N/A';
+      const period = r.Period || 'N/A';
+      const balance = r.Balance || 0;
+      const budget = r.Budget || 0;
+      const cumBudget = r.Cumulative_Budget || 0;
+      const variance = r.Variance || 0;
+      
+      const bal = parseFloat(balance);
+      const vari = parseFloat(variance);
+      
+      return `<tr>
+        <td class="acct-id mono">${accountId}</td>
+        <td>${description}</td>
+        <td class="mono">${period}</td>
+        <td class="num ${bal < 0 ? 'neg' : 'pos'}">${fmt(balance)}</td>
+        <td class="num">${fmt(budget)}</td>
+        <td class="num">${fmt(cumBudget)}</td>
+        <td class="num ${vari < 0 ? 'neg' : 'pos'}">${fmt(variance)}</td>
+      </tr>`;
+    }).join('');
+
+    // Totals with safe calculations
+    const totBal  = data.reduce((s,r) => s + (parseFloat(r.Balance) || 0), 0);
+    const totBudg = data.reduce((s,r) => s + (parseFloat(r.Budget) || 0), 0);
+    const totVar  = data.reduce((s,r) => s + (parseFloat(r.Variance) || 0), 0);
+    
+    document.getElementById('tableFoot').innerHTML = `<tr>
+      <td colspan="3">Totals</td>
+      <td class="${totBal<0?'neg':''}">${fmt(totBal)}</td>
+      <td>${fmt(totBudg)}</td>
+      <td></td>
+      <td class="${totVar<0?'neg':''}">${fmt(totVar)}</td>
+    </tr>`;
+  }
+
+  function renderKPIs(data) {
+    if (!data || !data.length) { 
+      document.getElementById('kpiStrip').style.display = 'none'; 
+      return; 
+    }
+    
+    document.getElementById('kpiStrip').style.display = 'grid';
+    
+    // Safe access to last record
+    const lastRecord = data[data.length - 1];
+    const latest = parseFloat(lastRecord.Balance) || 0;
+    
+    const totBal = data.reduce((s,r)=>s+(parseFloat(r.Balance)||0),0);
+    const neg = data.filter(r=>(parseFloat(r.Balance)||0) < 0).length;
+    const pos = data.length - neg;
+
+    document.getElementById('kpiPeriods').textContent  = data.length;
+    document.getElementById('kpiBalance').textContent  = fmt(latest);
+    document.getElementById('kpiBalance').className    = 'gl-kpi-value ' + (latest<0?'neg':'pos');
+    document.getElementById('kpiDebit').textContent    = neg + ' periods negative';
+    document.getElementById('kpiCredit').textContent   = pos + ' periods positive';
+  }
+
+  function exportExcel() {
+    const p = params();
+    
+    // Client-side validation
+    const validationErrors = validateParams(p);
+    if (validationErrors.length > 0) {
+      showError('Cannot export: ' + validationErrors.join('. '));
+      return;
+    }
+    
+    if (!p.q || p.q.trim().length < 2) {
+      showError('Cannot export: Please enter a valid search query');
+      return;
+    }
+    
+    try {
+      const qs = new URLSearchParams(p).toString();
+      window.location = '/api/gl/export?' + qs;
+    } catch(e) {
+      console.error('Export error:', e);
+      showError('Export failed: ' + e.message);
+    }
+  }
+
+  function showState(s) {
+    document.getElementById('emptyState').style.display   = s==='empty'   ? 'block' : 'none';
+    document.getElementById('loadingState').style.display = s==='loading' ? 'block' : 'none';
+    document.getElementById('resultsWrap').style.display  = s==='results' ? 'block' : 'none';
+  }
+
+  function showError(msg) {
+    const el = document.getElementById('errorMsg');
+    el.textContent = msg; el.style.display = 'block';
+  }
+  function hideError() {
+    document.getElementById('errorMsg').style.display = 'none';
+  }
+
+  const savedTheme = localStorage.getItem('glTheme') || 'light';
+  document.documentElement.setAttribute('data-theme', savedTheme);
+  const themeToggle = document.getElementById('themeToggle');
+  if (themeToggle) {
+    themeToggle.addEventListener('click', () => {
+      const current = document.documentElement.getAttribute('data-theme') || 'light';
+      const next = current === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('glTheme', next);
+    });
+  }
+</script>
+<script>
+let lastData = [];
+
+const fmt = (v) => {
+    const n = parseFloat(v);
+    if (isNaN(n)) return 'R0.00';
+
+    const abs = Math.abs(n).toLocaleString('en-ZA', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
+
+    return n < 0 ? `(R${abs})` : `R${abs}`;
+};
+
+function showState(state) {
+
+    document.getElementById('emptyState').style.display =
+        state === 'empty' ? 'block' : 'none';
+
+    document.getElementById('loadingState').style.display =
+        state === 'loading' ? 'block' : 'none';
+
+    document.getElementById('resultsWrap').style.display =
+        state === 'results' ? 'block' : 'none';
+}
+
+function showError(msg) {
+    const el = document.getElementById('errorMsg');
+    el.innerText = msg;
+    el.style.display = 'block';
+}
+
+function hideError() {
+    document.getElementById('errorMsg').style.display = 'none';
+}
+
+function params() {
+    return {
+        q: document.getElementById('searchQ').value.trim(),
+        start_year: document.getElementById('startYear').value,
+        start_period: document.getElementById('startPeriod').value,
+        end_year: document.getElementById('endYear').value,
+        end_period: document.getElementById('endPeriod').value,
+    };
+}
+
+async function runSearch() {
+
+    hideError();
+
+    const p = params();
+
+    if (!p.q || p.q.length < 2) {
+        showError('Enter at least 2 characters');
+        return;
+    }
+
+    showState('loading');
+
+    try {
+
+        const qs = new URLSearchParams(p).toString();
+
+        const res = await fetch('/api/gl/search?' + qs);
+
+        const json = await res.json();
+
+        if (!json.data || !json.data.length) {
+            showState('empty');
+            return;
+        }
+
+        lastData = json.data;
+
+        renderTable(lastData);
+
+        renderKPIs(lastData);
+
+        document.getElementById('exportBtn').disabled = false;
+
+    } catch (err) {
+
+        console.error(err);
+
+        showError('Failed to load data');
+
+        showState('empty');
+    }
+}
+
+function renderTable(data) {
+
+    showState('results');
+
+    document.getElementById('rowCount').innerText =
+        data.length + ' rows';
+
+    const tbody = document.getElementById('tableBody');
+
+    tbody.innerHTML = data.map(r => {
+
+        const bal = parseFloat(r.Balance || 0);
+
+        const vari = parseFloat(r.Variance || 0);
+
+        return `
+        <tr>
+            <td class="acct-id mono">${r.Account_ID || ''}</td>
+            <td>${r.Description || ''}</td>
+            <td class="mono">${r.Period || ''}</td>
+
+            <td class="num ${bal < 0 ? 'neg' : 'pos'}">
+                ${fmt(r.Balance)}
+            </td>
+
+            <td class="num">${fmt(r.Budget)}</td>
+
+            <td class="num">${fmt(r.Cumulative_Budget)}</td>
+
+            <td class="num ${vari < 0 ? 'neg' : 'pos'}">
+                ${fmt(r.Variance)}
+            </td>
+        </tr>
+        `;
+    }).join('');
+}
+
+function renderKPIs(data) {
+
+    document.getElementById('kpiStrip').style.display = 'grid';
+
+    const latest =
+        parseFloat(data[data.length - 1].Balance || 0);
+
+    document.getElementById('kpiPeriods').innerText =
+        data.length;
+
+    document.getElementById('kpiBalance').innerText =
+        fmt(latest);
+
+    document.getElementById('kpiDebit').innerText =
+        data.filter(x => parseFloat(x.Balance || 0) < 0).length +
+        ' negative';
+
+    document.getElementById('kpiCredit').innerText =
+        data.filter(x => parseFloat(x.Balance || 0) >= 0).length +
+        ' positive';
+}
+
+function exportExcel() {
+
+    const qs = new URLSearchParams(params()).toString();
+
+    window.location =
+        '/api/gl/export?' + qs;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+
+    showState('empty');
+
+    document
+        .getElementById('searchBtn')
+        .addEventListener('click', runSearch);
+
+    document
+        .getElementById('searchQ')
+        .addEventListener('keydown', (e) => {
+
+            if (e.key === 'Enter') {
+                runSearch();
+            }
+        });
+});
+</script>
+</body>
+</html>
+

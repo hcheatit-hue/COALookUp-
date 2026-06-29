@@ -1,0 +1,301 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <div class="app">
+
+
+    <!-- HEADER CARD -->
+    <div class="bento-card gl-header-card bento-pad">
+      <div class="gl-logo">HC</div>
+      <div>
+        <div class="eyebrow">Procurement Intelligence</div>
+        <h1 class="gl-title">Supplier Performance</h1>
+        <p class="gl-subtitle">Dec 2025 – Jun 2026 · HC Heat Exchangers</p>
+      </div>
+      <div class="gl-btn-row">
+        <a href="/" class="gl-action-btn">← Back to Orders</a>
+        <button class="gl-action-btn" id="themeToggle">Toggle theme</button>
+      </div>
+    </div>
+
+    <!-- REPORT KPIs -->
+    <div class="report-kpis">
+      <div class="report-card bento-card">
+        <div class="label">Total spend ordered</div>
+        <div class="value" id="reportSpend">—</div>
+        <div class="hint">all suppliers</div>
+      </div>
+      <div class="report-card bento-card">
+        <div class="label">Total received</div>
+        <div class="value" id="reportReceived">—</div>
+        <div class="hint" id="reportFillHint">— fulfillment</div>
+      </div>
+      <div class="report-card bento-card">
+        <div class="label">Active suppliers</div>
+        <div class="value" id="reportActive">—</div>
+        <div class="hint">with PO activity</div>
+      </div>
+      <div class="report-card bento-card">
+        <div class="label">Total purchase orders</div>
+        <div class="value" id="reportPOs">—</div>
+        <div class="hint">Dec 2025 – Jun 2026</div>
+      </div>
+    </div>
+
+    <!-- KPI GRID (8 tiles) -->
+    <div class="kpi-grid" style="margin-bottom:18px;">
+      <div class="kpi-tile bento-card">
+        <div class="kpi-label">Total Suppliers</div>
+        <div class="gl-kpi-value" id="kpiSuppliers">—</div>
+      </div>
+      <div class="kpi-tile bento-card">
+        <div class="kpi-label">Total Spend</div>
+        <div class="gl-kpi-value" id="kpiSpend">—</div>
+      </div>
+      <div class="kpi-tile bento-card">
+        <div class="kpi-label">Total POs</div>
+        <div class="gl-kpi-value" id="kpiPOs">—</div>
+      </div>
+      <div class="kpi-tile bento-card">
+        <div class="kpi-label">Avg Fulfillment</div>
+        <div class="gl-kpi-value" id="kpiFill">—</div>
+      </div>
+      <div class="kpi-tile bento-card">
+        <div class="kpi-label">Avg Spend / Supplier</div>
+        <div class="gl-kpi-value" id="kpiAvgSpend">—</div>
+      </div>
+      <div class="kpi-tile bento-card">
+        <div class="kpi-label">Top Supplier Spend</div>
+        <div class="gl-kpi-value" id="kpiTopSupplier">—</div>
+      </div>
+      <div class="kpi-tile bento-card">
+        <div class="kpi-label">Total Received</div>
+        <div class="gl-kpi-value" id="kpiReceived">—</div>
+      </div>
+      <div class="kpi-tile bento-card">
+        <div class="kpi-label">Active Suppliers</div>
+        <div class="gl-kpi-value" id="kpiActive">—</div>
+      </div>
+    </div>
+
+    <!-- TIER GRID -->
+    <div class="tier-grid" style="margin-bottom:18px;">
+      <div class="tier-card bento-card">
+        <div class="tier-title">High &gt; R1M</div>
+        <div class="tier-value" id="tierHigh">—</div>
+        <div class="tier-pct" id="tierHighPct">—</div>
+      </div>
+      <div class="tier-card bento-card">
+        <div class="tier-title">Mid R100K – 1M</div>
+        <div class="tier-value" id="tierMid">—</div>
+        <div class="tier-pct" id="tierMidPct">—</div>
+      </div>
+      <div class="tier-card bento-card">
+        <div class="tier-title">Low &lt; R100K</div>
+        <div class="tier-value" id="tierLow">—</div>
+        <div class="tier-pct" id="tierLowPct">—</div>
+      </div>
+    </div>
+
+    <!-- CHARTS -->
+    <div class="insights-grid">
+      <div class="insight-card bento-card">
+        <div class="section-title">Top 10 Suppliers by Spend</div>
+        <canvas id="top10Chart"></canvas>
+      </div>
+      <div class="insight-card bento-card">
+        <div class="section-title">Monthly PO Distribution</div>
+        <canvas id="monthlyChart"></canvas>
+      </div>
+    </div>
+
+    <!-- SUPPLIER LIST -->
+    <div class="bento-card">
+      <div class="gl-table-header">
+        <span>All Suppliers</span>
+        <span class="gl-badge" id="supplierCount">Loading…</span>
+      </div>
+      <div class="bento-pad" style="padding-top:14px;">
+        <div class="search-input-wrap">
+          <input id="search" class="search-input" placeholder="Search suppliers…" />
+        </div>
+        <div id="supplierGrid" class="supplier-grid">
+          <div style="padding:40px; text-align:center; color:var(--hc-muted);">Loading suppliers…</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    let top10ChartInstance = null;
+    let monthlyChartInstance = null;
+
+    // --- theme toggle ---
+    document.getElementById("themeToggle").addEventListener("click", () => {
+      const html = document.documentElement;
+      html.dataset.theme = html.dataset.theme === "dark" ? "" : "dark";
+    });
+
+    function format(n) {
+      return "R " + (n || 0).toLocaleString("en-ZA");
+    }
+    function fillRate(received, ordered) {
+      if (!ordered) return 0;
+      return Math.round((received / ordered) * 100);
+    }
+
+    function render(data) {
+      const grid = document.getElementById("supplierGrid");
+      grid.innerHTML = "";
+
+      let totalSpend = 0, totalPO = 0, totalReceived = 0, active = 0;
+      let high = 0, mid = 0, low = 0;
+      let topSupplier = null;
+
+      data.forEach(v => {
+        const spend = v.total_spend || 0;
+        if (spend > 1000000) high++;
+        else if (spend >= 100000) mid++;
+        else low++;
+
+        totalSpend += spend;
+        totalPO += v.number_of_pos || 0;
+        totalReceived += v.total_received || 0;
+        if (v.number_of_pos > 0) active++;
+        if (!topSupplier || spend > (topSupplier.total_spend || 0)) topSupplier = v;
+
+        const fill = fillRate(v.total_received, spend);
+        const row = document.createElement("div");
+        row.className = "supplier-row";
+        row.innerHTML = `
+          <div>
+            <div class="supplier-name">${v.vendor_name}</div>
+            <div class="supplier-id">${v.vendor_id}</div>
+          </div>
+          <div class="cell"><strong>${v.number_of_pos}</strong><br>POs</div>
+          <div class="cell"><strong>${format(spend)}</strong><br>Spend</div>
+          <div class="cell"><strong>${format(v.total_received)}</strong><br>Received</div>
+          <div class="cell">
+            ${fill}%
+            <div class="bar"><div class="fill" style="width:${fill}%"></div></div>
+          </div>
+          <div class="cell">${v.last_order_date || "—"}</div>
+        `;
+        grid.appendChild(row);
+      });
+
+      const fillPct = totalSpend ? Math.round((totalReceived / totalSpend) * 100) : 0;
+      const total = high + mid + low || 1;
+
+      // report KPIs
+      document.getElementById("reportSpend").innerText = format(totalSpend);
+      document.getElementById("reportReceived").innerText = format(totalReceived);
+      document.getElementById("reportFillHint").innerText = fillPct + "% fulfillment";
+      document.getElementById("reportActive").innerText = active;
+      document.getElementById("reportPOs").innerText = totalPO;
+
+      // kpi tiles
+      document.getElementById("kpiSuppliers").innerText = data.length;
+      document.getElementById("kpiSpend").innerText = format(totalSpend);
+      document.getElementById("kpiPOs").innerText = totalPO;
+      document.getElementById("kpiFill").innerText = fillPct + "%";
+      document.getElementById("kpiAvgSpend").innerText = data.length ? format(Math.round(totalSpend / data.length)) : "—";
+      document.getElementById("kpiTopSupplier").innerText = topSupplier ? topSupplier.vendor_name : "—";
+      document.getElementById("kpiReceived").innerText = format(totalReceived);
+      document.getElementById("kpiActive").innerText = active;
+
+      // tiers
+      document.getElementById("tierHigh").innerText = high + " suppliers";
+      document.getElementById("tierHighPct").innerText = Math.round((high / total) * 100) + "%";
+      document.getElementById("tierMid").innerText = mid + " suppliers";
+      document.getElementById("tierMidPct").innerText = Math.round((mid / total) * 100) + "%";
+      document.getElementById("tierLow").innerText = low + " suppliers";
+      document.getElementById("tierLowPct").innerText = Math.round((low / total) * 100) + "%";
+
+      // badge
+      document.getElementById("supplierCount").innerText = data.length + " suppliers";
+    }
+
+    async function loadTop10() {
+      const res = await fetch("/api/suppliers/top10");
+      const data = await res.json();
+      const ctx = document.getElementById("top10Chart").getContext("2d");
+      if (top10ChartInstance) top10ChartInstance.destroy();
+      top10ChartInstance = new Chart(ctx, {
+        type: "bar",
+        data: {
+          labels: data.map(x => x.name),
+          datasets: [{
+            label: "Spend",
+            data: data.map(x => x.spend),
+            backgroundColor: "rgba(227,6,19,.72)",
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { font: { family: "'JetBrains Mono', monospace", size: 10 } } },
+            y: { ticks: { font: { family: "'JetBrains Mono', monospace", size: 10 } } }
+          }
+        }
+      });
+    }
+
+    async function loadMonthly() {
+      const res = await fetch("/api/suppliers/monthly");
+      const data = await res.json();
+      const ctx = document.getElementById("monthlyChart").getContext("2d");
+      if (monthlyChartInstance) monthlyChartInstance.destroy();
+      monthlyChartInstance = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels: data.map(x => x.month),
+          datasets: [{
+            label: "POs",
+            data: data.map(x => x.count),
+            fill: true,
+            borderColor: "#E30613",
+            backgroundColor: "rgba(227,6,19,.10)",
+            tension: 0.4,
+            pointBackgroundColor: "#E30613"
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { font: { family: "'JetBrains Mono', monospace", size: 10 } } },
+            y: { ticks: { font: { family: "'JetBrains Mono', monospace", size: 10 } } }
+          }
+        }
+      });
+    }
+
+    async function load() {
+      try {
+        const res = await fetch("/api/suppliers/summary");
+        const data = await res.json();
+        if (data.error) { console.error(data.error); return; }
+        render(data);
+        await loadTop10();
+        await loadMonthly();
+      } catch (e) {
+        console.error("Failed to load suppliers", e);
+      }
+    }
+
+    document.getElementById("search").addEventListener("input", function(e) {
+      const q = e.target.value.toLowerCase();
+      document.querySelectorAll(".supplier-row").forEach(row => {
+        row.style.display = row.innerText.toLowerCase().includes(q) ? "grid" : "none";
+      });
+    });
+
+    window.addEventListener("DOMContentLoaded", load);
+    setInterval(load, 90000);
+  </script>
+</body>
+</html>

@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>VISUAL Permission Lookup</title>
+<link
+rel="stylesheet"
+href="{{ url_for('static', filename='css/hc-ui.css') }}"
+>
+<link
+rel="stylesheet"
+href="{{ url_for('static', filename='css/hc-ui-user.css') }}"
+>
+
+</head>
+<body>
+
+<header>
+  <h1>VISUAL Permission Lookup</h1>
+  <p>Search Infor VISUAL user / group / profile permissions (effective access shown, defaults to "Full Access" when no explicit rule exists)</p>
+</header>
+
+<div class="container">
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="byUser">By User</button>
+    <button class="tab-btn" data-tab="byProgram">By Program / Menu</button>
+  </div>
+
+  <!-- ============ TAB: BY USER ============ -->
+  <div id="byUser" class="panel">
+    <div class="field-row">
+      <div class="field">
+        <label for="userInput">User ID</label>
+        <input type="text" id="userInput" list="userList" placeholder="e.g. VROOYENC" autocomplete="off">
+        <datalist id="userList"></datalist>
+      </div>
+      <button onclick="loadUser()">Search</button>
+    </div>
+    <div class="hint">Shows this user's groups, profiles, and effective permission for every program in the system.</div>
+
+    <div id="userStatus" class="status-msg"></div>
+
+    <div id="userResultsWrap" class="hidden">
+      <h3 style="font-size:14px; margin-bottom:6px;">Groups</h3>
+      <div class="table-wrap" style="max-height:160px; margin-bottom:18px;">
+        <table id="groupsTable">
+          <thead><tr><th>Group ID</th><th>Description</th><th>Leader</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <h3 style="font-size:14px; margin-bottom:6px;">Profiles</h3>
+      <div class="table-wrap" style="max-height:160px; margin-bottom:18px;">
+        <table id="profilesTable">
+          <thead><tr><th>Profile ID</th><th>Description</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <h3 style="font-size:14px; margin-bottom:6px;">Program Access (<span id="programCount">0</span> programs)</h3>
+      <div class="field-row">
+        <div class="field">
+          <label for="programFilter">Filter by name</label>
+          <input type="text" id="programFilter" placeholder="type to filter..." oninput="filterProgramsTable()">
+        </div>
+        <div class="field">
+          <label for="accessFilter">Access level</label>
+          <select id="accessFilter" onchange="filterProgramsTable()">
+            <option value="">All</option>
+            <option value="Y">Full Access</option>
+            <option value="R">Read Only</option>
+            <option value="N">No Access</option>
+          </select>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table id="programsTable">
+          <thead><tr><th>Menu String</th><th>Program ID</th><th>Effective Permission</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ TAB: BY PROGRAM ============ -->
+  <div id="byProgram" class="panel hidden">
+    <div class="field-row">
+      <div class="field">
+        <label for="searchMode">Search by</label>
+        <select id="searchMode">
+          <option value="menu_text">Menu String (partial match)</option>
+          <option value="program_id">Program ID (exact match)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="programInput">Value</label>
+        <input type="text" id="programInput" list="programList" placeholder="e.g. Shipping Entry or VMSHPENT" autocomplete="off">
+        <datalist id="programList"></datalist>
+      </div>
+      <div class="field">
+        <label for="accessFilter2">Access level</label>
+        <select id="accessFilter2">
+          <option value="">All</option>
+          <option value="Y">Full Access only</option>
+          <option value="R">Read Only only</option>
+          <option value="N">No Access only</option>
+        </select>
+      </div>
+      <button onclick="loadProgramSearch()">Search</button>
+    </div>
+    <div class="hint">Shows every user AND every profile, with their effective permission for the matched program(s).</div>
+
+    <div id="programStatus" class="status-msg"></div>
+
+    <div id="programResultsWrap" class="hidden">
+      <h3 style="font-size:14px; margin-bottom:6px;">
+        Results (<span id="resultCount">0</span>)
+      </h3>
+      <div class="table-wrap">
+        <table id="searchTable">
+          <thead><tr><th>Type</th><th>ID</th><th>Menu String</th><th>Program ID</th><th>Permission</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+let allPrograms = []; // full per-user program list, kept for client-side filtering
+
+// ---------- Tabs ----------
+document.querySelectorAll(".tab-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(".panel").forEach(p => p.classList.add("hidden"));
+    btn.classList.add("active");
+    document.getElementById(btn.dataset.tab).classList.remove("hidden");
+  });
+});
+
+// ---------- Autocomplete data ----------
+async function loadAutocomplete() {
+  try {
+    const usersRes = await fetch("/api/users");
+    const users = await usersRes.json();
+    const userList = document.getElementById("userList");
+    userList.innerHTML = users.map(u => `<option value="${u}">`).join("");
+
+    const progRes = await fetch("/api/programs");
+    const programs = await progRes.json();
+    const programList = document.getElementById("programList");
+    programList.innerHTML = programs.map(p =>
+      `<option value="${p.MENU_TEXT}">${p.PROGRAM_ID} - ${p.MENU_TEXT}</option>`
+    ).join("");
+  } catch (e) {
+    console.error("Autocomplete load failed", e);
+  }
+}
+loadAutocomplete();
+
+// ---------- Badge helper ----------
+function badge(permission, desc) {
+  return `<span class="badge badge-${permission}">${desc || permission}</span>`;
+}
+
+// ---------- By User ----------
+async function loadUser() {
+  const userId = document.getElementById("userInput").value.trim();
+  const statusEl = document.getElementById("userStatus");
+  const resultsWrap = document.getElementById("userResultsWrap");
+
+  if (!userId) {
+    statusEl.textContent = "Enter a user ID.";
+    statusEl.className = "status-msg error-msg";
+    return;
+  }
+
+  statusEl.textContent = "Loading...";
+  statusEl.className = "status-msg";
+  resultsWrap.classList.add("hidden");
+
+  try {
+    const [groupsRes, profilesRes, programsRes] = await Promise.all([
+      fetch(`/api/user/${encodeURIComponent(userId)}/groups`),
+      fetch(`/api/user/${encodeURIComponent(userId)}/profiles`),
+      fetch(`/api/user/${encodeURIComponent(userId)}/programs`)
+    ]);
+
+    const groups = await groupsRes.json();
+    const profiles = await profilesRes.json();
+    const programs = await programsRes.json();
+
+    allPrograms = programs;
+
+    // Groups table
+    const groupsBody = document.querySelector("#groupsTable tbody");
+    groupsBody.innerHTML = groups.length
+      ? groups.map(g => `<tr><td>${g.GroupID}</td><td>${g.GroupDesc || ""}</td><td>${g.IS_LEADER === "Y" ? "Yes" : ""}</td></tr>`).join("")
+      : `<tr><td colspan="3" style="color:#6b7785;">No group membership</td></tr>`;
+
+    // Profiles table
+    const profilesBody = document.querySelector("#profilesTable tbody");
+    profilesBody.innerHTML = profiles.length
+      ? profiles.map(p => `<tr><td>${p.PROFILE_ID}</td><td>${p.DESCRIPTION || ""}</td></tr>`).join("")
+      : `<tr><td colspan="2" style="color:#6b7785;">No profile assigned</td></tr>`;
+
+    document.getElementById("programCount").textContent = programs.length;
+    renderProgramsTable(programs);
+
+    statusEl.textContent = `Loaded permissions for ${userId}.`;
+    resultsWrap.classList.remove("hidden");
+  } catch (e) {
+    statusEl.textContent = "Error loading user data. Check console / server logs.";
+    statusEl.className = "status-msg error-msg";
+    console.error(e);
+  }
+}
+
+function renderProgramsTable(programs) {
+  const body = document.querySelector("#programsTable tbody");
+  body.innerHTML = programs.map(p => `
+    <tr>
+      <td>${p.MenuString || ""}</td>
+      <td>${p.PROGRAM_ID}</td>
+      <td>${badge(p.Permission, p.PermissionDesc)}</td>
+    </tr>
+  `).join("");
+}
+
+function filterProgramsTable() {
+  const term = document.getElementById("programFilter").value.toLowerCase();
+  const access = document.getElementById("accessFilter").value;
+
+  const filtered = allPrograms.filter(p => {
+    const matchesTerm = !term ||
+      (p.MenuString && p.MenuString.toLowerCase().includes(term)) ||
+      (p.PROGRAM_ID && p.PROGRAM_ID.toLowerCase().includes(term));
+    const matchesAccess = !access || p.Permission === access;
+    return matchesTerm && matchesAccess;
+  });
+
+  document.getElementById("programCount").textContent = filtered.length;
+  renderProgramsTable(filtered);
+}
+
+// ---------- By Program / Menu ----------
+async function loadProgramSearch() {
+  const mode = document.getElementById("searchMode").value;
+  const value = document.getElementById("programInput").value.trim();
+  const access = document.getElementById("accessFilter2").value;
+  const statusEl = document.getElementById("programStatus");
+  const resultsWrap = document.getElementById("programResultsWrap");
+
+  if (!value) {
+    statusEl.textContent = "Enter a program ID or menu string.";
+    statusEl.className = "status-msg error-msg";
+    return;
+  }
+
+  statusEl.textContent = "Loading...";
+  statusEl.className = "status-msg";
+  resultsWrap.classList.add("hidden");
+
+  const params = new URLSearchParams();
+  params.set(mode, value);
+  if (access) params.set("access", access);
+
+  try {
+    const res = await fetch(`/api/search?${params.toString()}`);
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || "Search failed");
+    }
+    const rows = await res.json();
+
+    document.getElementById("resultCount").textContent = rows.length;
+
+    const body = document.querySelector("#searchTable tbody");
+    body.innerHTML = rows.length
+      ? rows.map(r => `
+          <tr>
+            <td><span class="record-tag">${r.RecordType}</span></td>
+            <td>${r.ID}</td>
+            <td>${r.MenuString || ""}</td>
+            <td>${r.PROGRAM_ID}</td>
+            <td>${badge(r.Permission, r.PermissionDesc)}</td>
+          </tr>
+        `).join("")
+      : `<tr><td colspan="5" style="color:#6b7785;">No results</td></tr>`;
+
+    statusEl.textContent = `Found ${rows.length} record(s).`;
+    resultsWrap.classList.remove("hidden");
+  } catch (e) {
+    statusEl.textContent = "Error: " + e.message;
+    statusEl.className = "status-msg error-msg";
+    console.error(e);
+  }
+}
+
+// Enter key triggers search in each tab
+document.getElementById("userInput").addEventListener("keydown", e => {
+  if (e.key === "Enter") loadUser();
+});
+document.getElementById("programInput").addEventListener("keydown", e => {
+  if (e.key === "Enter") loadProgramSearch();
+});
+</script>
+
+</body>
+</html>
